@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { api } from '../api';
 import { appConfirm } from './dialog';
-import type { Entry, Tab } from '../types';
+import type { Attachment, Entry, Tab } from '../types';
 
 interface Props {
   entry: Entry;
@@ -31,6 +31,18 @@ export default function EntryCard({ entry, tabs, showTab, onChanged }: Props) {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function removePhoto(a: Attachment) {
+    const ok = await appConfirm({
+      title: 'Delete this photo?',
+      message: 'It will be removed from this entry. This cannot be undone.',
+      confirmLabel: 'Delete photo',
+      danger: true,
+    });
+    if (!ok) return;
+    await api.del(`/api/attachments/${a.id}`);
+    onChanged();
   }
 
   async function remove() {
@@ -86,17 +98,30 @@ export default function EntryCard({ entry, tabs, showTab, onChanged }: Props) {
       )}
 
       {entry.attachments.length > 0 && (
-        <div className="entry-photos">
-          {entry.attachments.map((a) => (
-            <img
-              key={a.id}
-              src={`/api/files/${a.filename}?thumb=1`}
-              alt=""
-              loading="lazy"
-              onClick={() => setLightbox(`/api/files/${a.filename}`)}
-            />
-          ))}
-        </div>
+        editing ? (
+          <div className="pending-photos" style={{ marginTop: 10 }}>
+            {entry.attachments.map((a) => (
+              <div className="thumb" key={a.id}>
+                <img src={`/api/files/${a.filename}?thumb=1`} alt="" />
+                <button className="remove" title="Delete photo" onClick={() => removePhoto(a)}>
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="entry-photos">
+            {entry.attachments.map((a) => (
+              <img
+                key={a.id}
+                src={`/api/files/${a.filename}?thumb=1`}
+                alt=""
+                loading="lazy"
+                onClick={() => setLightbox(`/api/files/${a.filename}`)}
+              />
+            ))}
+          </div>
+        )
       )}
 
       {lightbox && (
