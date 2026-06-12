@@ -18,6 +18,7 @@ import {
   ensureVapid, saveSubscription, removeSubscription, sendToAll,
   reminderSettings, updateReminderSettings, startReminderLoop,
 } from './push.js';
+import { loginGate, recordAttempt, recentActivity, lockoutPolicy } from './security.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
@@ -37,14 +38,15 @@ const upload = multer({
   fileFilter: (_req, file, cb) => cb(null, /^image\//.test(file.mimetype)),
 });
 
-// Simple login throttle: after 5 failures, wait 30s between attempts.
-let failedLogins = 0;
-let lastFailure = 0;
-function throttled() {
-  return failedLogins >= 5 && Date.now() - lastFailure < 30_000;
+const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function rejectLocked(res, gate) {
+  res.set('Retry-After', String(gate.retryAfterSec));
+  const mins = Math.ceil(gate.retryAfterSec / 60);
+  res.status(429).json({
+    error: `Too many failed attempts — sign-in is locked for ${mins} more minute${mins === 1 ? '' : 's'}`,
+  });
 }
-function loginFailed() { failedLogins++; lastFailure = Date.now(); }
-function loginSucceeded() { failedLogins = 0; }
 
 // ---------- auth ----------
 
@@ -80,23 +82,27 @@ app.post('/api/setup', (req, res) => {
   res.json({ ok: true });
 });
 
-app.post('/api/login', (req, res) => {
-  if (throttled()) return res.status(429).json({ error: 'Too many attempts — wait 30 seconds' });
+app.post('/api/login', async (req, res) => {
+  const gate = loginGate(req);
+  if (gate.blocked) return rejectLocked(res, gate);
   const user = getUser();
   if (!user) return res.status(400).json({ error: 'Not set up yet' });
   const { password, totp } = req.body || {};
   if (!password || !verifyPassword(password, user.pass_hash)) {
-    loginFailed();
+    recordAttempt(req, 'password', false);
+    await delay(400); // flat cost per failure to slow guessing
     return res.status(401).json({ error: 'Wrong password' });
   }
   if (user.totp_enabled) {
+    // Asking for the code isn't a failed attempt — it's step two of login.
     if (!totp) return res.status(401).json({ totpRequired: true });
     if (!checkTotp(user.totp_secret, totp)) {
-      loginFailed();
+      recordAttempt(req, '2fa code', false);
+      await delay(400);
       return res.status(401).json({ totpRequired: true, error: 'Wrong authenticator code' });
     }
   }
-  loginSucceeded();
+  recordAttempt(req, user.totp_enabled ? 'password + 2fa' : 'password', true);
   createSession(res, user.id);
   res.json({ ok: true });
 });
@@ -113,6 +119,18 @@ app.post('/api/password', requireAuth, (req, res) => {
   }
   if (!next || next.length < 8) return res.status(400).json({ error: 'New password must be at least 8 characters' });
   db.prepare('UPDATE users SET pass_hash = ? WHERE id = ?').run(hashPassword(next), req.user.id);
+  res.json({ ok: true });
+});
+
+// ---------- security: activity log & sessions ----------
+
+app.get('/api/security/activity', requireAuth, (_req, res) => {
+  res.json({ attempts: recentActivity(10), policy: lockoutPolicy });
+});
+
+app.post('/api/security/logout-all', requireAuth, (req, res) => {
+  db.prepare('DELETE FROM sessions').run();
+  destroySession(req, res);
   res.json({ ok: true });
 });
 
@@ -160,14 +178,16 @@ app.post('/api/webauthn/login-options', async (req, res) => {
 });
 
 app.post('/api/webauthn/login-verify', async (req, res) => {
-  if (throttled()) return res.status(429).json({ error: 'Too many attempts — wait 30 seconds' });
+  const gate = loginGate(req);
+  if (gate.blocked) return rejectLocked(res, gate);
   try {
     const userId = await verifyAuthentication(req, req.body);
-    loginSucceeded();
+    recordAttempt(req, 'passkey', true);
     createSession(res, userId);
     res.json({ ok: true });
   } catch (e) {
-    loginFailed();
+    recordAttempt(req, 'passkey', false);
+    await delay(400);
     res.status(401).json({ error: e.message });
   }
 });

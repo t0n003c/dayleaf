@@ -55,6 +55,9 @@ export default function Settings({ me, tabs, refreshTabs, refreshMe, showToast }
   // Passkeys
   const [creds, setCreds] = useState<Credential[]>([]);
 
+  // Login activity
+  const [activity, setActivity] = useState<{ attempts: any[] } | null>(null);
+
   // Daily reminder
   const [reminder, setReminder] = useState<ReminderSettings | null>(null);
   const [reminderBusy, setReminderBusy] = useState(false);
@@ -71,7 +74,14 @@ export default function Settings({ me, tabs, refreshTabs, refreshMe, showToast }
     api.get('/api/settings/ai').then(setAi);
     api.get('/api/webauthn/credentials').then(setCreds);
     api.get('/api/settings/reminder').then(setReminder);
+    api.get('/api/security/activity').then(setActivity).catch(() => {});
   }, []);
+
+  async function logoutEverywhere() {
+    if (!confirm('Sign out on ALL devices (including this one)?')) return;
+    await api.post('/api/security/logout-all');
+    refreshMe();
+  }
 
   async function enableReminder() {
     setReminderBusy(true);
@@ -492,7 +502,42 @@ export default function Settings({ me, tabs, refreshTabs, refreshMe, showToast }
           </div>
           <button className="btn small" onClick={logout}>Sign out</button>
         </div>
+
+        <div className="settings-row">
+          <div className="grow">
+            <div className="title">All devices</div>
+            <div className="sub">Lost a device? End every active session at once</div>
+          </div>
+          <button className="btn danger small" onClick={logoutEverywhere}>Sign out everywhere</button>
+        </div>
       </div>
+
+      {activity && activity.attempts.length > 0 && (
+        <>
+          <h2 className="section">Recent login activity</h2>
+          <div className="card">
+            {activity.attempts.map((a) => (
+              <div className="settings-row" key={a.id}>
+                <div className="grow">
+                  <div className="title" style={{ fontWeight: 500 }}>
+                    {a.success ? '✅' : '⚠️'} {a.success ? 'Signed in' : 'Failed attempt'} · {a.method}
+                  </div>
+                  <div className="sub">
+                    {new Date(`${a.created_at.replace(' ', 'T')}Z`).toLocaleString(undefined, {
+                      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+                    })}{' '}
+                    · {a.ip}
+                  </div>
+                </div>
+              </div>
+            ))}
+            <p className="hint" style={{ marginBottom: 4 }}>
+              Repeated failures trigger a cooldown automatically — and a push notification if
+              reminders are set up on any device.
+            </p>
+          </div>
+        </>
+      )}
 
       <h2 className="section">Data</h2>
       <div className="card">

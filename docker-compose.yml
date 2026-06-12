@@ -19,3 +19,9 @@ services:
     #   - PUBLIC_ORIGIN=https://journal.example.com
     #     # ^ only needed if biometric/passkey setup complains about a
     #     #   wrong origin and your proxy mangles X-Forwarded-Proto
+    #
+    # Brute-force protection (defaults shown; rarely needs tuning):
+    #   - MAX_LOGIN_ATTEMPTS=5      # failed tries per IP before cooldown
+    #   - MAX_GLOBAL_ATTEMPTS=15    # failed tries from anywhere before cooldown
+    #   - LOGIN_WINDOW_MINUTES=15   # how far back failures are counted
+    #   - LOCKOUT_MINUTES=15        # cooldown length once tripped
