@@ -19,6 +19,7 @@ import {
   reminderSettings, updateReminderSettings, startReminderLoop,
 } from './push.js';
 import { loginGate, recordAttempt, recentActivity, lockoutPolicy } from './security.js';
+import { optimizeUpload, thumbFile, thumbName, backfillThumbnails } from './images.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
@@ -31,12 +32,25 @@ app.use(express.json({ limit: '2mb' }));
 const upload = multer({
   storage: multer.diskStorage({
     destination: UPLOAD_DIR,
-    filename: (_req, file, cb) =>
-      cb(null, `${crypto.randomBytes(12).toString('hex')}${extname(file.originalname || '').toLowerCase() || '.jpg'}`),
+    // .orig marks an unprocessed upload; optimizeUpload converts it to WebP
+    filename: (_req, _file, cb) => cb(null, `${crypto.randomBytes(12).toString('hex')}.orig`),
   }),
   limits: { fileSize: 15 * 1024 * 1024, files: 6 },
   fileFilter: (_req, file, cb) => cb(null, /^image\//.test(file.mimetype)),
 });
+
+async function storePhotos(entryId, files) {
+  for (const f of files || []) {
+    const stored = await optimizeUpload(f.path, UPLOAD_DIR, f.mimetype);
+    db.prepare('INSERT INTO attachments (entry_id, filename, original_name, mime, size) VALUES (?, ?, ?, ?, ?)')
+      .run(entryId, stored.filename, f.originalname, stored.mime, stored.size);
+  }
+}
+
+function removeStoredFile(filename) {
+  try { unlinkSync(join(UPLOAD_DIR, filename)); } catch {}
+  try { unlinkSync(thumbFile(UPLOAD_DIR, filename)); } catch {}
+}
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -241,9 +255,7 @@ app.delete('/api/tabs/:id', requireAuth, (req, res) => {
     'SELECT a.filename FROM attachments a JOIN entries e ON e.id = a.entry_id WHERE e.tab_id = ?'
   ).all(req.params.id);
   db.prepare('DELETE FROM tabs WHERE id = ?').run(req.params.id);
-  for (const f of files) {
-    try { unlinkSync(join(UPLOAD_DIR, f.filename)); } catch {}
-  }
+  for (const f of files) removeStoredFile(f.filename);
   res.json({ ok: true });
 });
 
@@ -271,7 +283,7 @@ app.get('/api/entries', requireAuth, (req, res) => {
   res.json(db.prepare(sql).all(...params).map(entryWithAttachments));
 });
 
-app.post('/api/entries', requireAuth, upload.array('photos'), (req, res) => {
+app.post('/api/entries', requireAuth, upload.array('photos'), async (req, res) => {
   const { tab_id, content, mood, entry_date } = req.body || {};
   const tab = db.prepare('SELECT id FROM tabs WHERE id = ?').get(Number(tab_id));
   if (!tab) return res.status(400).json({ error: 'Pick a tab' });
@@ -281,17 +293,14 @@ app.post('/api/entries', requireAuth, upload.array('photos'), (req, res) => {
   const date = /^\d{4}-\d{2}-\d{2}$/.test(entry_date || '') ? entry_date : new Date().toISOString().slice(0, 10);
   const r = db.prepare('INSERT INTO entries (tab_id, content, mood, entry_date) VALUES (?, ?, ?, ?)')
     .run(tab.id, (content || '').trim(), mood || null, date);
-  for (const f of req.files || []) {
-    db.prepare('INSERT INTO attachments (entry_id, filename, original_name, mime, size) VALUES (?, ?, ?, ?, ?)')
-      .run(Number(r.lastInsertRowid), f.filename, f.originalname, f.mimetype, f.size);
-  }
+  await storePhotos(Number(r.lastInsertRowid), req.files);
   const row = db.prepare(
     'SELECT e.*, t.name AS tab_name, t.emoji AS tab_emoji, t.color AS tab_color FROM entries e JOIN tabs t ON t.id = e.tab_id WHERE e.id = ?'
   ).get(r.lastInsertRowid);
   res.json(entryWithAttachments(row));
 });
 
-app.put('/api/entries/:id', requireAuth, upload.array('photos'), (req, res) => {
+app.put('/api/entries/:id', requireAuth, upload.array('photos'), async (req, res) => {
   const entry = db.prepare('SELECT * FROM entries WHERE id = ?').get(req.params.id);
   if (!entry) return res.status(404).json({ error: 'No such entry' });
   const { content, mood, entry_date, tab_id } = req.body || {};
@@ -304,10 +313,7 @@ app.put('/api/entries/:id', requireAuth, upload.array('photos'), (req, res) => {
     tab_id ? Number(tab_id) : entry.tab_id,
     entry.id
   );
-  for (const f of req.files || []) {
-    db.prepare('INSERT INTO attachments (entry_id, filename, original_name, mime, size) VALUES (?, ?, ?, ?, ?)')
-      .run(entry.id, f.filename, f.originalname, f.mimetype, f.size);
-  }
+  await storePhotos(entry.id, req.files);
   const row = db.prepare(
     'SELECT e.*, t.name AS tab_name, t.emoji AS tab_emoji, t.color AS tab_color FROM entries e JOIN tabs t ON t.id = e.tab_id WHERE e.id = ?'
   ).get(entry.id);
@@ -317,9 +323,7 @@ app.put('/api/entries/:id', requireAuth, upload.array('photos'), (req, res) => {
 app.delete('/api/entries/:id', requireAuth, (req, res) => {
   const files = db.prepare('SELECT filename FROM attachments WHERE entry_id = ?').all(req.params.id);
   db.prepare('DELETE FROM entries WHERE id = ?').run(req.params.id);
-  for (const f of files) {
-    try { unlinkSync(join(UPLOAD_DIR, f.filename)); } catch {}
-  }
+  for (const f of files) removeStoredFile(f.filename);
   res.json({ ok: true });
 });
 
@@ -344,15 +348,24 @@ app.delete('/api/attachments/:id', requireAuth, (req, res) => {
   const a = db.prepare('SELECT * FROM attachments WHERE id = ?').get(req.params.id);
   if (a) {
     db.prepare('DELETE FROM attachments WHERE id = ?').run(a.id);
-    try { unlinkSync(join(UPLOAD_DIR, a.filename)); } catch {}
+    removeStoredFile(a.filename);
   }
   res.json({ ok: true });
 });
 
 app.get('/api/files/:name', requireAuth, (req, res) => {
   const name = req.params.name.replace(/[^a-z0-9.]/gi, '');
+  if (req.query.thumb) {
+    const thumb = join(UPLOAD_DIR, 'thumbs', thumbName(name));
+    if (existsSync(thumb)) {
+      res.type('image/webp');
+      res.setHeader('Cache-Control', 'private, max-age=31536000, immutable');
+      return res.sendFile(thumb);
+    }
+  }
   const path = join(UPLOAD_DIR, name);
   if (!existsSync(path)) return res.status(404).end();
+  res.setHeader('Cache-Control', 'private, max-age=31536000, immutable');
   res.sendFile(path);
 });
 
@@ -499,6 +512,12 @@ app.use(express.static(WEB_DIST));
 app.get(/^\/(?!api\/).*/, (_req, res) => res.sendFile(join(WEB_DIST, 'index.html')));
 
 startReminderLoop();
+
+// Backfill thumbnails for photos uploaded before the WebP pipeline existed.
+setTimeout(() => {
+  const filenames = db.prepare('SELECT filename FROM attachments').all().map((r) => r.filename);
+  backfillThumbnails(filenames, UPLOAD_DIR).catch((e) => console.error('thumb backfill failed:', e.message));
+}, 3000);
 
 app.listen(PORT, () => {
   console.log(`Dayleaf listening on http://0.0.0.0:${PORT} (data in ${DATA_DIR})`);

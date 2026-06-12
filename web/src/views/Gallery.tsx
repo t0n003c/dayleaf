@@ -138,7 +138,7 @@ export default function Gallery() {
           <div className="gallery-grid">
             {members.map(({ index, item }) => (
               <button className="gallery-thumb" key={item.id} onClick={() => setSelected(index)}>
-                <img src={`/api/files/${item.filename}`} alt="" loading="lazy" />
+                <img src={`/api/files/${item.filename}?thumb=1`} alt="" loading="lazy" />
                 <span className="thumb-emoji">{item.tab_emoji}</span>
               </button>
             ))}

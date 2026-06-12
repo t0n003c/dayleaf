@@ -38,6 +38,7 @@ You verify Dayleaf's web UI in a real browser and report what you observed, with
 - Install banner `.install-banner`: appears for coarse-pointer (mobile) visitors not running standalone — iOS UA gets Share instructions, others get an Install button once `beforeinstallprompt` fires (dispatch a synthetic cancelable event with stub `prompt`/`userChoice` to test). Dismissing snoozes 14 days via localStorage `dayleaf-install-dismissed`.
 - Photos view (nav item 3): `.gallery-thumb` grid grouped by month; clicking opens `.photo-viewer` with `.viewer-nav.prev/.next` (also ArrowLeft/Right), `.viewer-close`, info card with `.viewer-count`, and Open original / Delete actions (delete uses the in-app dialog).
 - Nav: desktop `.desktop-nav .nav-btn` (Journal/Ask/Photos/Settings), mobile `.bottom-nav .nav-btn`.
+- Uploads are converted to WebP server-side (attachment filenames end .webp, mime image/webp); grids request `/api/files/<name>?thumb=1`, viewers/lightboxes the full file. Seed with REAL images (sharp must decode them) — a fake 8-byte PNG exercises only the keep-original fallback.
 - Seed entries fast via `page.evaluate` POSTing FormData (`tab_id`, `content`, `mood`, `entry_date`) to `/api/entries`.
 - Viewports: desktop 1180×800; mobile 390×844 with `isMobile: true, hasTouch: true`. Dark mode: `document.documentElement.dataset.theme = 'dark'`.
 - **Wait ~600ms after navigation/state changes before screenshots** — cards have a 0.25s fade-up entrance animation and early captures show blank (opacity 0) cards.

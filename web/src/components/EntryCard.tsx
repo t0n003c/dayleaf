@@ -90,7 +90,7 @@ export default function EntryCard({ entry, tabs, showTab, onChanged }: Props) {
           {entry.attachments.map((a) => (
             <img
               key={a.id}
-              src={`/api/files/${a.filename}`}
+              src={`/api/files/${a.filename}?thumb=1`}
               alt=""
               loading="lazy"
               onClick={() => setLightbox(`/api/files/${a.filename}`)}

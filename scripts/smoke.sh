@@ -21,10 +21,13 @@ check "reorder tabs"    '"ok":true' "$(curl -s -b $J -X PUT -H 'Content-Type: ap
 check "order persisted" '"name":"Fitness"' "$(curl -s -b $J $B/api/tabs | head -c 80)"
 check "create entry"    '"content":"hello smoke"' "$(curl -s -b $J -F tab_id=1 -F 'content=hello smoke' -F mood=🙂 $B/api/entries)"
 PNG="$(mktemp /tmp/dayleaf-smoke-img.XXXXXX).png"
-printf '\x89PNG\r\n\x1a\n' > "$PNG"
+# a real 1x1 PNG so the WebP pipeline can convert it
+printf 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==' | base64 -d > "$PNG"
 check "entry with photo" '"attachments":[{' "$(curl -s -b $J -F tab_id=1 -F 'content=photo entry' -F photos=@"$PNG;type=image/png" $B/api/entries)"
+check "converted to webp" '"mime":"image/webp"' "$(curl -s -b $J "$B/api/entries?q=photo+entry")"
 FNAME=$(curl -s -b $J $B/api/entries | sed -n 's/.*"filename":"\([^"]*\)".*/\1/p' | head -1)
 check "photo serves"    "200" "$(curl -s -o /dev/null -w '%{http_code}' -b $J $B/api/files/$FNAME)"
+check "thumb serves"    "image/webp" "$(curl -s -o /dev/null -w '%{content_type}' -b $J "$B/api/files/$FNAME?thumb=1")"
 check "gallery list"    '"total":1' "$(curl -s -b $J $B/api/attachments)"
 check "search"          'hello smoke' "$(curl -s -b $J "$B/api/entries?q=hello")"
 check "edit entry"      'hello edited' "$(curl -s -b $J -X PUT -F 'content=hello edited' $B/api/entries/1)"

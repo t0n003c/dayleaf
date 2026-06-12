@@ -4,7 +4,7 @@ import { join, resolve } from 'node:path';
 
 export const DATA_DIR = resolve(process.env.DATA_DIR || '/data');
 mkdirSync(DATA_DIR, { recursive: true });
-mkdirSync(join(DATA_DIR, 'uploads'), { recursive: true });
+mkdirSync(join(DATA_DIR, 'uploads', 'thumbs'), { recursive: true });
 
 export const db = new DatabaseSync(join(DATA_DIR, 'dayleaf.db'));
 
