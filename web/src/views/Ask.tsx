@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
+import { useIsMobile } from '../hooks';
 import type { Tab } from '../types';
 
 interface QA {
@@ -124,8 +125,9 @@ export default function Ask({ tabs }: { tabs: Tab[] }) {
     }
   }
 
-  return (
-    <>
+  const isMobile = useIsMobile();
+
+  const askCard = (
       <div className="card ask-card">
         <div className="ask-input-wrap">
           <textarea
@@ -205,6 +207,13 @@ export default function Ask({ tabs }: { tabs: Tab[] }) {
 
         {error && <p className="error-text">{error}</p>}
       </div>
+  );
+
+  return (
+    <>
+      {/* Desktop: input card at the top. Mobile: docked at the bottom for
+          one-handed reach (menus open upward there via CSS). */}
+      {!isMobile && askCard}
 
       {history.length === 0 && (
         <div className="suggestions">
@@ -224,6 +233,8 @@ export default function Ask({ tabs }: { tabs: Tab[] }) {
           <div className={`qa-a ${qa.done ? '' : 'thinking'}`}>{qa.answer || (qa.done ? '' : ' ')}</div>
         </article>
       ))}
+
+      {isMobile && <div className="ask-dock">{askCard}</div>}
     </>
   );
 }

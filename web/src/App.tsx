@@ -55,6 +55,18 @@ export default function App() {
     api.put('/api/tabs/reorder', { ids }).catch(() => refreshTabs());
   }, [refreshTabs]);
 
+  const deleteTab = useCallback(async (t: Tab) => {
+    if (!confirm(`Delete “${t.name}” and ALL of its entries? This cannot be undone.`)) return;
+    try {
+      await api.del(`/api/tabs/${t.id}`);
+      setActiveTab((cur) => (cur === t.id ? 'all' : cur));
+      refreshTabs();
+      showToast('Journal deleted');
+    } catch (err: any) {
+      alert(err.message);
+    }
+  }, [refreshTabs, showToast]);
+
   useEffect(() => { refreshMe(); }, [refreshMe]);
   useEffect(() => { if (me?.authed) refreshTabs(); }, [me?.authed, refreshTabs]);
   useEffect(() => { localStorage.setItem('dayleaf-tab', String(activeTab)); }, [activeTab]);
@@ -143,6 +155,7 @@ export default function App() {
         onClose={() => setSidebarOpen(false)}
         onNewTab={() => { setEditingTab('new'); setSidebarOpen(false); }}
         onEditTab={(t) => { setEditingTab(t); setSidebarOpen(false); }}
+        onDeleteTab={deleteTab}
         onReorder={reorderTabs}
       />
 

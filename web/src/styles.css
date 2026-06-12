@@ -95,9 +95,31 @@ button, input, textarea, select {
   padding: 0 16px calc(88px + env(safe-area-inset-bottom));
 }
 
-/* extra room on mobile journal so the bottom quick-jot dock never covers entries */
+/* extra room on mobile so the bottom docks never cover content */
 @media (max-width: 699px) {
   .app.view-journal { padding-bottom: calc(156px + env(safe-area-inset-bottom)); }
+  .app.view-ask { padding-bottom: calc(248px + env(safe-area-inset-bottom)); }
+}
+
+/* mobile Ask: input card docks at the bottom, dropdowns open upward */
+.ask-dock {
+  position: fixed;
+  left: 8px;
+  right: 8px;
+  bottom: calc(64px + env(safe-area-inset-bottom));
+  z-index: 25;
+}
+
+.ask-dock .ask-card {
+  box-shadow: var(--shadow-menu);
+  border-color: var(--border-strong);
+  padding: 10px 12px 10px;
+  animation: none;
+}
+
+.ask-dock .menu {
+  top: auto;
+  bottom: calc(100% + 7px);
 }
 
 /* ---------- sidebar ---------- */
@@ -270,6 +292,13 @@ button, input, textarea, select {
 
 .side-tab:hover .side-edit { opacity: 1; }
 .side-edit:hover { color: var(--accent); }
+.side-delete { padding: 0 8px 0 2px; font-size: 12px; }
+.side-delete:hover { color: var(--danger); }
+
+/* touch devices have no hover — keep row actions reachable */
+@media (hover: none) {
+  .side-edit { opacity: 0.55; }
+}
 
 .sidebar-new {
   display: flex;

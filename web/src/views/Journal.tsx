@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
+import { useIsMobile } from '../hooks';
 import type { Entry, FlashbackGroup, Stats, Tab } from '../types';
 import Composer from '../components/Composer';
 import EntryCard from '../components/EntryCard';
@@ -32,17 +33,6 @@ function greeting(): { text: string; emoji: string } {
   if (h < 12) return { text: 'Good morning', emoji: '🌅' };
   if (h < 18) return { text: 'Good afternoon', emoji: '☀️' };
   return { text: 'Good evening', emoji: '🌙' };
-}
-
-function useIsMobile() {
-  const [mobile, setMobile] = useState(() => window.matchMedia('(max-width: 699px)').matches);
-  useEffect(() => {
-    const q = window.matchMedia('(max-width: 699px)');
-    const fn = (e: MediaQueryListEvent) => setMobile(e.matches);
-    q.addEventListener('change', fn);
-    return () => q.removeEventListener('change', fn);
-  }, []);
-  return mobile;
 }
 
 interface Props {

@@ -11,12 +11,13 @@ interface Props {
   onClose: () => void;
   onNewTab: () => void;
   onEditTab: (t: Tab) => void;
+  onDeleteTab: (t: Tab) => void;
   onReorder: (ids: number[]) => void;
 }
 
 export default function Sidebar({
   tabs, activeTab, collapsed, mobileOpen,
-  onSelect, onToggleCollapse, onClose, onNewTab, onEditTab, onReorder,
+  onSelect, onToggleCollapse, onClose, onNewTab, onEditTab, onDeleteTab, onReorder,
 }: Props) {
   const total = tabs.reduce((sum, t) => sum + (t.entry_count ?? 0), 0);
 
@@ -144,6 +145,9 @@ export default function Sidebar({
               </button>
               <button className="side-edit" title={`Edit ${t.name}`} onClick={() => onEditTab(t)}>
                 ✎
+              </button>
+              <button className="side-edit side-delete" title={`Delete ${t.name}`} onClick={() => onDeleteTab(t)}>
+                🗑
               </button>
             </div>
           ))}
