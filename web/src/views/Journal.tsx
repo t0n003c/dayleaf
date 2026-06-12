@@ -55,6 +55,7 @@ export default function Journal({ tabs, activeTab, composeSignal, searchSignal, 
   const [composerOpen, setComposerOpen] = useState(false);
   const [stats, setStats] = useState<Stats | null>(null);
   const [flashbacks, setFlashbacks] = useState<FlashbackGroup[]>([]);
+  const [loaded, setLoaded] = useState(false); // first /api/entries fetch resolved?
   const isMobile = useIsMobile();
 
   const today = new Date().toLocaleDateString('sv');
@@ -67,6 +68,7 @@ export default function Journal({ tabs, activeTab, composeSignal, searchSignal, 
     if (activeTab !== 'all') params.set('tab', String(activeTab));
     if (search.trim()) params.set('q', search.trim());
     setEntries(await api.get(`/api/entries?${params}`));
+    setLoaded(true);
     api.get(`/api/stats?today=${today}`).then(setStats).catch(() => {});
   }, [activeTab, search, today]);
 
@@ -243,7 +245,7 @@ export default function Journal({ tabs, activeTab, composeSignal, searchSignal, 
         </section>
       )}
 
-      {grouped.length === 0 && (
+      {loaded && grouped.length === 0 && (
         <div className="empty-state">
           <div className="big">🍃</div>
           {search ? 'Nothing matches your search.' : 'No entries yet — jot down your first thought.'}
