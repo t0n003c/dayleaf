@@ -3,6 +3,7 @@
 const LEAVES = ['🍃', '🌿', '🍂'];
 
 export function leafBurst() {
+  try { navigator.vibrate?.(15); } catch {} // gentle haptic where supported
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const host = document.createElement('div');
   host.className = 'leaf-burst';

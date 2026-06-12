@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { api } from '../api';
 import { appConfirm } from './dialog';
 import type { Attachment, Entry, Tab } from '../types';
@@ -14,6 +14,9 @@ interface Props {
 export default function EntryCard({ entry, tabs, showTab, onChanged, stagger }: Props) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(entry.content);
+  const [newPhotos, setNewPhotos] = useState<File[]>([]);
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -21,13 +24,23 @@ export default function EntryCard({ entry, tabs, showTab, onChanged, stagger }: 
     hour: 'numeric', minute: '2-digit',
   });
 
+  function addFiles(list: FileList | null) {
+    if (!list || list.length === 0) return;
+    const picked = Array.from(list); // snapshot: the FileList is live
+    setNewPhotos((prev) =>
+      [...prev, ...picked].slice(0, Math.max(0, 6 - entry.attachments.length))
+    );
+  }
+
   async function saveEdit() {
     setBusy(true);
     try {
       const form = new FormData();
       form.set('content', draft);
+      for (const p of newPhotos) form.append('photos', p);
       await api.form('PUT', `/api/entries/${entry.id}`, form);
       setEditing(false);
+      setNewPhotos([]);
       onChanged();
     } finally {
       setBusy(false);
@@ -71,7 +84,7 @@ export default function EntryCard({ entry, tabs, showTab, onChanged, stagger }: 
         <span className="spacer" />
         {editing ? (
           <div className="entry-actions" style={{ opacity: 1 }}>
-            <button className="btn ghost small" onClick={() => { setEditing(false); setDraft(entry.content); }}>
+            <button className="btn ghost small" onClick={() => { setEditing(false); setDraft(entry.content); setNewPhotos([]); }}>
               Cancel
             </button>
             <button className="btn primary small" onClick={saveEdit} disabled={busy}>
@@ -98,31 +111,53 @@ export default function EntryCard({ entry, tabs, showTab, onChanged, stagger }: 
         <div className="entry-content">{entry.content}</div>
       )}
 
-      {entry.attachments.length > 0 && (
-        editing ? (
-          <div className="pending-photos" style={{ marginTop: 10 }}>
-            {entry.attachments.map((a) => (
-              <div className="thumb" key={a.id}>
-                <img src={`/api/files/${a.filename}?thumb=1`} alt="" />
-                <button className="remove" title="Delete photo" onClick={() => removePhoto(a)}>
-                  ✕
-                </button>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="entry-photos">
-            {entry.attachments.map((a) => (
-              <img
-                key={a.id}
-                src={`/api/files/${a.filename}?thumb=1`}
-                alt=""
-                loading="lazy"
-                onClick={() => setLightbox(`/api/files/${a.filename}`)}
-              />
-            ))}
-          </div>
-        )
+      {editing && (
+        <div className="pending-photos" style={{ marginTop: 10 }}>
+          {entry.attachments.map((a) => (
+            <div className="thumb" key={a.id}>
+              <img src={`/api/files/${a.filename}?thumb=1`} alt="" />
+              <button className="remove" title="Delete photo" onClick={() => removePhoto(a)}>
+                ✕
+              </button>
+            </div>
+          ))}
+          {newPhotos.map((p, i) => (
+            <div className="thumb" key={`new-${i}`}>
+              <img src={URL.createObjectURL(p)} alt="" />
+              <button className="remove" title="Remove" onClick={() => setNewPhotos(newPhotos.filter((_, j) => j !== i))}>
+                ✕
+              </button>
+            </div>
+          ))}
+          {entry.attachments.length + newPhotos.length < 6 && (
+            <>
+              <button className="add-photo-tile" title="Take a photo" onClick={() => cameraRef.current?.click()}>
+                📷
+              </button>
+              <button className="add-photo-tile" title="Attach images" onClick={() => fileRef.current?.click()}>
+                🖼️
+              </button>
+              <input ref={cameraRef} type="file" accept="image/*" capture="environment" hidden
+                onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }} />
+              <input ref={fileRef} type="file" accept="image/*" multiple hidden
+                onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }} />
+            </>
+          )}
+        </div>
+      )}
+
+      {!editing && entry.attachments.length > 0 && (
+        <div className="entry-photos">
+          {entry.attachments.map((a) => (
+            <img
+              key={a.id}
+              src={`/api/files/${a.filename}?thumb=1`}
+              alt=""
+              loading="lazy"
+              onClick={() => setLightbox(`/api/files/${a.filename}`)}
+            />
+          ))}
+        </div>
       )}
 
       {lightbox && (
