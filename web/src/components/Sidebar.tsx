@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import type { Tab } from '../types';
 
 interface Props {
@@ -10,13 +11,78 @@ interface Props {
   onClose: () => void;
   onNewTab: () => void;
   onEditTab: (t: Tab) => void;
+  onReorder: (ids: number[]) => void;
 }
 
 export default function Sidebar({
   tabs, activeTab, collapsed, mobileOpen,
-  onSelect, onToggleCollapse, onClose, onNewTab, onEditTab,
+  onSelect, onToggleCollapse, onClose, onNewTab, onEditTab, onReorder,
 }: Props) {
   const total = tabs.reduce((sum, t) => sum + (t.entry_count ?? 0), 0);
+
+  // Drag-to-reorder via pointer events (works for mouse AND touch). The
+  // dragged row follows the pointer; crossing 60% of a row height swaps
+  // neighbours in the local order, committed to the server on release.
+  const [order, setOrder] = useState<number[]>(() => tabs.map((t) => t.id));
+  const [dragId, setDragId] = useState<number | null>(null);
+  const [dragY, setDragY] = useState(0);
+  const drag = useRef<{ startY: number; index: number; rowH: number } | null>(null);
+  const orderRef = useRef(order);
+  orderRef.current = order;
+  const dragIdRef = useRef(dragId);
+  dragIdRef.current = dragId;
+
+  useEffect(() => {
+    if (dragIdRef.current === null) setOrder(tabs.map((t) => t.id));
+  }, [tabs]);
+
+  const ordered = order
+    .map((id) => tabs.find((t) => t.id === id))
+    .filter(Boolean) as Tab[];
+
+  function startDrag(e: React.PointerEvent, tab: Tab) {
+    e.preventDefault();
+    const row = (e.currentTarget as HTMLElement).closest('.side-tab') as HTMLElement | null;
+    drag.current = {
+      startY: e.clientY,
+      index: orderRef.current.indexOf(tab.id),
+      rowH: (row?.offsetHeight ?? 40) + 2,
+    };
+    setDragId(tab.id);
+    setDragY(0);
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }
+
+  function moveDrag(e: React.PointerEvent) {
+    if (dragIdRef.current === null || !drag.current) return;
+    const d = drag.current;
+    let dy = e.clientY - d.startY;
+    const cur = orderRef.current;
+    if (dy > d.rowH * 0.6 && d.index < cur.length - 1) {
+      const next = [...cur];
+      [next[d.index], next[d.index + 1]] = [next[d.index + 1], next[d.index]];
+      setOrder(next);
+      d.index += 1;
+      d.startY += d.rowH;
+      dy -= d.rowH;
+    } else if (dy < -d.rowH * 0.6 && d.index > 0) {
+      const next = [...cur];
+      [next[d.index], next[d.index - 1]] = [next[d.index - 1], next[d.index]];
+      setOrder(next);
+      d.index -= 1;
+      d.startY -= d.rowH;
+      dy += d.rowH;
+    }
+    setDragY(dy);
+  }
+
+  function endDrag() {
+    if (dragIdRef.current === null) return;
+    setDragId(null);
+    setDragY(0);
+    drag.current = null;
+    onReorder(orderRef.current);
+  }
 
   return (
     <>
@@ -51,12 +117,26 @@ export default function Sidebar({
               <span className="side-count">{total}</span>
             </button>
           </div>
-          {tabs.map((t) => (
+          {ordered.map((t) => (
             <div
               key={t.id}
-              className={`side-tab ${activeTab === t.id ? 'active' : ''}`}
-              style={{ ['--chip-color' as any]: t.color }}
+              className={`side-tab ${activeTab === t.id ? 'active' : ''} ${dragId === t.id ? 'dragging' : ''}`}
+              style={{
+                ['--chip-color' as any]: t.color,
+                ...(dragId === t.id ? { transform: `translateY(${dragY}px)` } : {}),
+              }}
             >
+              <button
+                className="side-drag"
+                title="Drag to reorder"
+                aria-label={`Reorder ${t.name}`}
+                onPointerDown={(e) => startDrag(e, t)}
+                onPointerMove={moveDrag}
+                onPointerUp={endDrag}
+                onPointerCancel={endDrag}
+              >
+                ⠿
+              </button>
               <button className="side-main" onClick={() => onSelect(t.id)} title={t.name}>
                 <span className="side-emoji">{t.emoji}</span>
                 <span className="side-name">{t.name}</span>

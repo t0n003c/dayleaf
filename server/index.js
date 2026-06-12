@@ -216,6 +216,15 @@ app.post('/api/tabs', requireAuth, (req, res) => {
   res.json(db.prepare('SELECT * FROM tabs WHERE id = ?').get(r.lastInsertRowid));
 });
 
+// NOTE: must be registered before /api/tabs/:id or "reorder" matches as an id.
+app.put('/api/tabs/reorder', requireAuth, (req, res) => {
+  const ids = req.body?.ids;
+  if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'ids required' });
+  const stmt = db.prepare('UPDATE tabs SET position = ? WHERE id = ?');
+  ids.forEach((id, i) => stmt.run(i, Number(id)));
+  res.json({ ok: true });
+});
+
 app.put('/api/tabs/:id', requireAuth, (req, res) => {
   const tab = db.prepare('SELECT * FROM tabs WHERE id = ?').get(req.params.id);
   if (!tab) return res.status(404).json({ error: 'No such tab' });

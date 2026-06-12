@@ -44,6 +44,17 @@ export default function App() {
   const refreshMe = useCallback(() => api.get('/api/me').then(setMe), []);
   const refreshTabs = useCallback(() => api.get('/api/tabs').then(setTabs), []);
 
+  const reorderTabs = useCallback((ids: number[]) => {
+    // optimistic: reflect the new order immediately, reconcile on failure
+    setTabs((prev) =>
+      ids
+        .map((id) => prev.find((t) => t.id === id))
+        .filter((t): t is Tab => !!t)
+        .map((t, i) => ({ ...t, position: i }))
+    );
+    api.put('/api/tabs/reorder', { ids }).catch(() => refreshTabs());
+  }, [refreshTabs]);
+
   useEffect(() => { refreshMe(); }, [refreshMe]);
   useEffect(() => { if (me?.authed) refreshTabs(); }, [me?.authed, refreshTabs]);
   useEffect(() => { localStorage.setItem('dayleaf-tab', String(activeTab)); }, [activeTab]);
@@ -132,6 +143,7 @@ export default function App() {
         onClose={() => setSidebarOpen(false)}
         onNewTab={() => { setEditingTab('new'); setSidebarOpen(false); }}
         onEditTab={(t) => { setEditingTab(t); setSidebarOpen(false); }}
+        onReorder={reorderTabs}
       />
 
       <div className="main">
