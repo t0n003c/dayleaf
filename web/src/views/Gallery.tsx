@@ -24,6 +24,7 @@ export default function Gallery() {
   const [items, setItems] = useState<GalleryItem[]>([]);
   const [total, setTotal] = useState<number | null>(null);
   const [selected, setSelected] = useState<number | null>(null); // index into items
+  const [slideDir, setSlideDir] = useState<0 | 1 | -1>(0); // viewer entrance direction
   const loading = useRef(false);
   const sentinel = useRef<HTMLDivElement>(null);
 
@@ -71,6 +72,7 @@ export default function Gallery() {
   const cur = selected !== null ? items[selected] : null;
 
   const step = useCallback((dir: 1 | -1) => {
+    setSlideDir(dir);
     setSelected((s) => {
       if (s === null) return s;
       const next = s + dir;
@@ -141,7 +143,7 @@ export default function Gallery() {
                 className="gallery-thumb"
                 key={item.id}
                 style={{ ['--stagger' as any]: index % 12 }}
-                onClick={() => setSelected(index)}
+                onClick={() => { setSlideDir(0); setSelected(index); }}
               >
                 <img src={`/api/files/${item.filename}?thumb=1`} alt="" loading="lazy" />
                 <span className="thumb-emoji">{item.tab_emoji}</span>
@@ -157,7 +159,12 @@ export default function Gallery() {
         <div className="photo-viewer" onClick={() => setSelected(null)}>
           <div className="viewer-body" onClick={(e) => e.stopPropagation()}>
             <div className="viewer-stage">
-              <img key={cur.id} className="viewer-img" src={`/api/files/${cur.filename}`} alt="" />
+              <img
+                key={cur.id}
+                className={`viewer-img ${slideDir === 1 ? 'slide-next' : slideDir === -1 ? 'slide-prev' : ''}`}
+                src={`/api/files/${cur.filename}`}
+                alt=""
+              />
               {selected! > 0 && (
                 <button className="viewer-nav prev" aria-label="Previous photo" onClick={() => step(-1)}>‹</button>
               )}

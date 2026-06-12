@@ -175,6 +175,67 @@ body, .card, .sidebar, .bottom-nav, .topbar, .input, .menu, .composer-sheet, .ch
   to { opacity: 1; transform: none; }
 }
 
+/* direction-aware slides when flipping through photos */
+.viewer-img.slide-next { animation: slide-from-right 0.26s cubic-bezier(0.25, 0.8, 0.35, 1); }
+.viewer-img.slide-prev { animation: slide-from-left 0.26s cubic-bezier(0.25, 0.8, 0.35, 1); }
+
+@keyframes slide-from-right {
+  from { opacity: 0.3; transform: translateX(48px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes slide-from-left {
+  from { opacity: 0.3; transform: translateX(-48px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- streak growth ring ---------- */
+
+.streak-ring {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.streak-ring .ring-fg {
+  transition: stroke-dashoffset 1s cubic-bezier(0.3, 0.8, 0.3, 1) 0.25s;
+}
+
+.streak-ring .ring-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  line-height: 1;
+}
+
+.streak-ring .ring-emoji {
+  font-size: 14px;
+  animation: ring-emoji-pop 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) 0.5s both;
+}
+
+@keyframes ring-emoji-pop {
+  from { transform: scale(0); }
+  to { transform: scale(1); }
+}
+
+.streak-ring .ring-num {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--text-dim);
+  margin-top: 1px;
+}
+
+.streak-ring.milestone svg {
+  border-radius: 50%;
+  animation: streak-glow 2.4s ease-in-out infinite;
+}
+
 kbd {
   font: inherit;
   font-size: 11.5px;

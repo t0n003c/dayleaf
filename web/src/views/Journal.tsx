@@ -5,6 +5,7 @@ import type { Entry, FlashbackGroup, Stats, Tab } from '../types';
 import Composer from '../components/Composer';
 import { leafBurst } from '../components/celebrate';
 import EntryCard from '../components/EntryCard';
+import StreakRing from '../components/StreakRing';
 
 const PROMPTS = [
   'What happened today?',
@@ -123,12 +124,12 @@ export default function Journal({ tabs, activeTab, composeSignal, searchSignal, 
                 ? `${activeTabObj.emoji} ${activeTabObj.name}`
                 : new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
             </span>
-            {stats && stats.streak >= 2 && <span className="stat-pill streak">🔥 {stats.streak}-day streak</span>}
             {stats && stats.daysJournaled > 0 && (
               <span className="stat-pill">🍃 {stats.daysJournaled} {stats.daysJournaled === 1 ? 'day' : 'days'} journaled</span>
             )}
           </div>
         </div>
+        {stats && stats.streak >= 1 && <StreakRing streak={stats.streak} />}
         <button
           className={`icon-btn search-btn ${searchOpen ? 'active' : ''}`}
           title="Search"
