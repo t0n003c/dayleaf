@@ -1843,3 +1843,12 @@ h2.section {
 @keyframes boot-pulse {
   50% { transform: scale(1.07); opacity: 0.75; }
 }
+
+/* Photos nav icon (camera + leaf lens) — scales with the nav-icon font-size
+   and tints via currentColor like the emoji siblings. */
+.nav-icon .photo-icon {
+  width: 1.05em;
+  height: 1.05em;
+  display: block;
+  vertical-align: middle;
+}

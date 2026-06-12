@@ -10,14 +10,15 @@ import Settings from './views/Settings';
 import InstallBanner from './components/InstallBanner';
 import Sidebar from './components/Sidebar';
 import TabEditor from './components/TabEditor';
+import PhotoIcon from './components/PhotoIcon';
 import { appAlert, appConfirm, DialogHost } from './components/dialog';
 
 type View = 'journal' | 'ask' | 'gallery' | 'settings';
 
-const NAV: { id: View; icon: string; label: string }[] = [
+const NAV: { id: View; icon: React.ReactNode; label: string }[] = [
   { id: 'journal', icon: '🍃', label: 'Journal' },
   { id: 'ask', icon: '✨', label: 'Ask' },
-  { id: 'gallery', icon: '🖼️', label: 'Photos' },
+  { id: 'gallery', icon: <PhotoIcon />, label: 'Photos' },
   { id: 'settings', icon: '⚙️', label: 'Settings' },
 ];
 
