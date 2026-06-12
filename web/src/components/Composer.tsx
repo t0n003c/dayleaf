@@ -99,65 +99,70 @@ export default function Composer({ tabs, defaultTab, onSaved, onClose, placehold
       {error && <p className="error-text">{error}</p>}
 
       <div className="composer-foot">
-        <div className="mood-row">
-          {MOODS.map((m) => (
-            <button
-              key={m}
-              className={`mood-btn ${mood === m ? 'active' : ''}`}
-              onClick={() => setMood(mood === m ? '' : m)}
-              title="Mood"
-            >
-              {m}
+        <div className="composer-tools">
+          <div className="mood-row">
+            {MOODS.map((m) => (
+              <button
+                key={m}
+                className={`mood-btn ${mood === m ? 'active' : ''}`}
+                onClick={() => setMood(mood === m ? '' : m)}
+                title="Mood"
+              >
+                {m}
+              </button>
+            ))}
+          </div>
+          <div className="photo-btns">
+            <button className="icon-btn" title="Take a photo" onClick={() => cameraRef.current?.click()}>
+              📷
             </button>
-          ))}
+            <button className="icon-btn" title="Attach images" onClick={() => fileRef.current?.click()}>
+              🖼️
+            </button>
+          </div>
+          <input
+            ref={cameraRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            hidden
+            onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }}
+          />
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            multiple
+            hidden
+            onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }}
+          />
         </div>
 
-        <button className="icon-btn" title="Take a photo" onClick={() => cameraRef.current?.click()}>
-          📷
-        </button>
-        <button className="icon-btn" title="Attach images" onClick={() => fileRef.current?.click()}>
-          🖼️
-        </button>
-        <input
-          ref={cameraRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          hidden
-          onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }}
-        />
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          multiple
-          hidden
-          onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }}
-        />
-
-        <input
-          className="date-input"
-          type="date"
-          value={date}
-          max={new Date().toLocaleDateString('sv')}
-          onChange={(e) => setDate(e.target.value)}
-        />
-
-        <div className="grow" />
-
-        {tabs.length > 1 && (
-          <select className="date-input" value={tabId} onChange={(e) => setTabId(Number(e.target.value))}>
-            {tabs.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.emoji} {t.name}
-              </option>
-            ))}
-          </select>
-        )}
-
-        <button className="btn primary small" onClick={save} disabled={busy || (!content.trim() && photos.length === 0)}>
-          Save
-        </button>
+        <div className="composer-actions">
+          <input
+            className="date-input"
+            type="date"
+            value={date}
+            max={new Date().toLocaleDateString('sv')}
+            onChange={(e) => setDate(e.target.value)}
+          />
+          {tabs.length > 1 && (
+            <select
+              className="date-input tab-select"
+              value={tabId}
+              onChange={(e) => setTabId(Number(e.target.value))}
+            >
+              {tabs.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.emoji} {t.name}
+                </option>
+              ))}
+            </select>
+          )}
+          <button className="btn primary small" onClick={save} disabled={busy || (!content.trim() && photos.length === 0)}>
+            Save
+          </button>
+        </div>
       </div>
     </div>
   );

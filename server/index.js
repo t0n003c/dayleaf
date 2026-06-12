@@ -55,10 +55,17 @@ app.get('/api/me', (req, res) => {
   res.json({
     needsSetup: false,
     authed: !!session,
-    username: session?.username,
+    username: session ? getSetting('display_name') || session.username : undefined,
     totpEnabled: !!user.totp_enabled,
     hasPasskeys: listCredentials().length > 0,
   });
+});
+
+app.put('/api/profile', requireAuth, (req, res) => {
+  const name = String(req.body?.name ?? '').trim().slice(0, 60);
+  if (!name) return res.status(400).json({ error: 'Name cannot be empty' });
+  setSetting('display_name', name);
+  res.json({ ok: true, name });
 });
 
 app.post('/api/setup', (req, res) => {

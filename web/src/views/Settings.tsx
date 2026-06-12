@@ -25,6 +25,23 @@ export default function Settings({ me, tabs, refreshTabs, refreshMe, showToast }
   const [theme, setTheme] = useState(document.documentElement.dataset.theme || 'light');
   const [editingTab, setEditingTab] = useState<Tab | 'new' | null>(null);
 
+  // Display name
+  const [nameOpen, setNameOpen] = useState(false);
+  const [nameDraft, setNameDraft] = useState(me.username ?? '');
+  const [nameMsg, setNameMsg] = useState('');
+
+  async function saveName() {
+    setNameMsg('');
+    try {
+      await api.put('/api/profile', { name: nameDraft });
+      setNameOpen(false);
+      refreshMe();
+      showToast(`Nice to meet you, ${nameDraft.trim()} 🍃`);
+    } catch (err: any) {
+      setNameMsg(err.message);
+    }
+  }
+
   // AI
   const [ai, setAi] = useState<AiSettings | null>(null);
   const [aiKey, setAiKey] = useState('');
@@ -223,6 +240,36 @@ export default function Settings({ me, tabs, refreshTabs, refreshMe, showToast }
 
   return (
     <>
+      <h2 className="section">Profile</h2>
+      <div className="card">
+        <div className="settings-row">
+          <div className="grow">
+            <div className="title">Your name</div>
+            <div className="sub">How Dayleaf greets you — currently “{me.username}”</div>
+          </div>
+          <button className="btn small" onClick={() => { setNameDraft(me.username ?? ''); setNameOpen(!nameOpen); }}>
+            Change
+          </button>
+        </div>
+        {nameOpen && (
+          <div style={{ padding: '4px 0 12px', display: 'flex', gap: 8 }}>
+            <input
+              className="input"
+              value={nameDraft}
+              maxLength={60}
+              autoFocus
+              placeholder="What should we call you?"
+              onChange={(e) => setNameDraft(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') saveName(); }}
+            />
+            <button className="btn primary small" onClick={saveName} disabled={!nameDraft.trim()}>
+              Save
+            </button>
+          </div>
+        )}
+        {nameMsg && <p className="error-text">{nameMsg}</p>}
+      </div>
+
       <h2 className="section">Appearance</h2>
       <div className="card">
         <div className="settings-row">

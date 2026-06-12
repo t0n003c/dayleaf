@@ -456,14 +456,43 @@ h2.section {
 .composer .composer-foot {
   display: flex;
   align-items: center;
-  gap: 7px;
+  justify-content: space-between;
+  gap: 10px 14px;
   margin-top: 10px;
   padding-top: 12px;
   border-top: 1px solid var(--border);
   flex-wrap: wrap;
 }
 
-.composer .composer-foot .grow { flex: 1; }
+.composer-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.composer-tools .photo-btns { display: flex; gap: 6px; }
+
+.composer-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: auto;
+}
+
+.composer-actions .tab-select { max-width: 150px; text-overflow: ellipsis; }
+
+@media (max-width: 560px) {
+  /* Two tidy rows on phones: moods + photo buttons, then date + tab + Save. */
+  .composer-tools,
+  .composer-actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: space-between;
+  }
+
+  .composer-actions .tab-select { flex: 1; min-width: 0; max-width: none; }
+  .composer-actions .btn.small { padding: 8px 20px; border-radius: 10px; }
+}
 
 .mood-row {
   display: flex;

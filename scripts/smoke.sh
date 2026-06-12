@@ -29,6 +29,8 @@ check "unauthed 401"    "401" "$(curl -s -o /dev/null -w '%{http_code}' $B/api/e
 check "export"          '"exportedAt"' "$(curl -s -b $J $B/api/export)"
 check "stats"           '"streak":1' "$(curl -s -b $J $B/api/stats)"
 check "on this day"     '[' "$(curl -s -b $J $B/api/onthisday)"
+check "set display name" '"name":"Sunny"' "$(curl -s -b $J -X PUT -H 'Content-Type: application/json' -d '{"name":"Sunny"}' $B/api/profile)"
+check "greet uses name" '"username":"Sunny"' "$(curl -s -b $J $B/api/me)"
 check "vapid key"       '"publicKey":"B' "$(curl -s -b $J $B/api/push/vapid-key)"
 check "reminder get"    '"enabled":false' "$(curl -s -b $J $B/api/settings/reminder)"
 check "reminder set"    '"enabled":true' "$(curl -s -b $J -X PUT -H 'Content-Type: application/json' -d '{"enabled":true,"time":"20:00","tz":"Asia/Ho_Chi_Minh"}' $B/api/settings/reminder)"
