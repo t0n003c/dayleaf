@@ -12,6 +12,7 @@ export interface Tab {
   emoji: string;
   color: string;
   position: number;
+  entry_count?: number;
 }
 
 export interface Attachment {

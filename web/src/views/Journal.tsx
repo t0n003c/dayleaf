@@ -34,28 +34,38 @@ function greeting(): { text: string; emoji: string } {
   return { text: 'Good evening', emoji: '🌙' };
 }
 
+function useIsMobile() {
+  const [mobile, setMobile] = useState(() => window.matchMedia('(max-width: 699px)').matches);
+  useEffect(() => {
+    const q = window.matchMedia('(max-width: 699px)');
+    const fn = (e: MediaQueryListEvent) => setMobile(e.matches);
+    q.addEventListener('change', fn);
+    return () => q.removeEventListener('change', fn);
+  }, []);
+  return mobile;
+}
+
 interface Props {
   tabs: Tab[];
+  activeTab: number | 'all';
   composeSignal: number;
   showToast: (msg: string) => void;
   username?: string;
 }
 
-export default function Journal({ tabs, composeSignal, showToast, username }: Props) {
-  const [activeTab, setActiveTab] = useState<number | 'all'>(() => {
-    const saved = localStorage.getItem('dayleaf-tab');
-    return saved && saved !== 'all' ? Number(saved) : 'all';
-  });
+export default function Journal({ tabs, activeTab, composeSignal, showToast, username }: Props) {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
   const [stats, setStats] = useState<Stats | null>(null);
   const [flashbacks, setFlashbacks] = useState<FlashbackGroup[]>([]);
+  const isMobile = useIsMobile();
 
   const today = new Date().toLocaleDateString('sv');
   const prompt = PROMPTS[new Date().getDate() % PROMPTS.length];
   const greet = greeting();
+  const activeTabObj = activeTab === 'all' ? null : tabs.find((t) => t.id === activeTab);
 
   const load = useCallback(async () => {
     const params = new URLSearchParams();
@@ -66,7 +76,6 @@ export default function Journal({ tabs, composeSignal, showToast, username }: Pr
   }, [activeTab, search, today]);
 
   useEffect(() => { load(); }, [load]);
-  useEffect(() => { localStorage.setItem('dayleaf-tab', String(activeTab)); }, [activeTab]);
   useEffect(() => {
     api.get(`/api/onthisday?today=${today}`).then(setFlashbacks).catch(() => {});
   }, [today]);
@@ -86,47 +95,52 @@ export default function Journal({ tabs, composeSignal, showToast, username }: Pr
 
   const composerTab = activeTab === 'all' ? tabs[0]?.id : activeTab;
 
+  const quickJotPill = (
+    <button className="compose-collapsed" onClick={() => setComposerOpen(true)}>
+      <span className="leaf">🍃</span>
+      <span className="prompt">{prompt}</span>
+      <span className="plus">＋</span>
+    </button>
+  );
+
+  const composer = composerTab !== undefined && (
+    <Composer
+      tabs={tabs}
+      defaultTab={composerTab}
+      placeholder={prompt}
+      autoFocus
+      onClose={() => setComposerOpen(false)}
+      onSaved={() => { load(); setComposerOpen(false); showToast('Saved 🍃'); }}
+    />
+  );
+
   return (
     <>
       <header className="greet">
-        <h1>
-          {greet.text}{username ? `, ${username}` : ''} <span className="greet-emoji">{greet.emoji}</span>
-        </h1>
-        <div className="greet-sub">
-          <span>
-            {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
-          </span>
-          {stats && stats.streak >= 2 && <span className="stat-pill">🔥 {stats.streak}-day streak</span>}
-          {stats && stats.daysJournaled > 0 && (
-            <span className="stat-pill">🍃 {stats.daysJournaled} {stats.daysJournaled === 1 ? 'day' : 'days'} journaled</span>
-          )}
+        <div className="greet-text">
+          <h1>
+            {greet.text}{username ? `, ${username}` : ''} <span className="greet-emoji">{greet.emoji}</span>
+          </h1>
+          <div className="greet-sub">
+            <span>
+              {activeTabObj
+                ? `${activeTabObj.emoji} ${activeTabObj.name}`
+                : new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+            </span>
+            {stats && stats.streak >= 2 && <span className="stat-pill">🔥 {stats.streak}-day streak</span>}
+            {stats && stats.daysJournaled > 0 && (
+              <span className="stat-pill">🍃 {stats.daysJournaled} {stats.daysJournaled === 1 ? 'day' : 'days'} journaled</span>
+            )}
+          </div>
         </div>
-      </header>
-
-      <div className="tab-row">
         <button
-          className={`chip ${activeTab === 'all' ? 'active' : ''}`}
-          onClick={() => setActiveTab('all')}
-        >
-          🗂️ All
-        </button>
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            className={`chip ${activeTab === t.id ? 'active' : ''}`}
-            style={{ ['--chip-color' as any]: t.color }}
-            onClick={() => setActiveTab(t.id)}
-          >
-            {t.emoji} {t.name}
-          </button>
-        ))}
-        <button
-          className={`chip ${searchOpen ? 'active' : ''}`}
+          className={`icon-btn search-btn ${searchOpen ? 'active' : ''}`}
+          title="Search"
           onClick={() => { setSearchOpen(!searchOpen); if (searchOpen) setSearch(''); }}
         >
           🔍
         </button>
-      </div>
+      </header>
 
       {searchOpen && (
         <div className="search-row">
@@ -140,23 +154,21 @@ export default function Journal({ tabs, composeSignal, showToast, username }: Pr
         </div>
       )}
 
-      {composerTab !== undefined && (
-        composerOpen ? (
-          <Composer
-            tabs={tabs}
-            defaultTab={composerTab}
-            placeholder={prompt}
-            autoFocus
-            onClose={() => setComposerOpen(false)}
-            onSaved={() => { load(); setComposerOpen(false); showToast('Saved 🍃'); }}
-          />
-        ) : (
-          <button className="compose-collapsed" onClick={() => setComposerOpen(true)}>
-            <span className="leaf">🍃</span>
-            <span className="prompt">{prompt}</span>
-            <span className="plus">＋</span>
-          </button>
-        )
+      {/* Desktop: composer lives inline under the greeting.
+          Mobile: the quick-jot pill docks at the bottom (thumb reach) and the
+          composer opens as a bottom sheet. */}
+      {composerTab !== undefined && !isMobile && (composerOpen ? composer : quickJotPill)}
+      {composerTab !== undefined && isMobile && !composerOpen && (
+        <div className="compose-dock">{quickJotPill}</div>
+      )}
+      {composerTab !== undefined && isMobile && composerOpen && (
+        <>
+          <div className="sheet-overlay" onClick={() => setComposerOpen(false)} />
+          <div className="composer-sheet">
+            <div className="sheet-handle" />
+            {composer}
+          </div>
+        </>
       )}
 
       {!search && flashbacks.length > 0 && (
@@ -180,7 +192,7 @@ export default function Journal({ tabs, composeSignal, showToast, username }: Pr
       {grouped.length === 0 && (
         <div className="empty-state">
           <div className="big">🍃</div>
-          {search ? 'Nothing matches your search.' : 'No entries yet — jot down your first thought above.'}
+          {search ? 'Nothing matches your search.' : 'No entries yet — jot down your first thought.'}
         </div>
       )}
 

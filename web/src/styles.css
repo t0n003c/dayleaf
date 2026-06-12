@@ -79,10 +79,232 @@ button, input, textarea, select {
 
 /* ---------- layout ---------- */
 
+.shell {
+  display: flex;
+  min-height: 100dvh;
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+}
+
 .app {
   max-width: 760px;
   margin: 0 auto;
   padding: 0 16px calc(88px + env(safe-area-inset-bottom));
+}
+
+/* extra room on mobile journal so the bottom quick-jot dock never covers entries */
+@media (max-width: 699px) {
+  .app.view-journal { padding-bottom: calc(156px + env(safe-area-inset-bottom)); }
+}
+
+/* ---------- sidebar ---------- */
+
+.sidebar {
+  width: 248px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 10px;
+  background: var(--bg-raised);
+  border-right: 1px solid var(--border);
+  transition: width 0.2s ease;
+  overflow-y: auto;
+  overflow-x: hidden;
+  z-index: 70;
+}
+
+.sidebar-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 6px 14px;
+}
+
+.sidebar-head img {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  flex-shrink: 0;
+  box-shadow: var(--shadow);
+}
+
+.sidebar-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 20px;
+  flex: 1;
+  white-space: nowrap;
+}
+
+.collapse-btn {
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  border-radius: 8px;
+  color: var(--text-dim);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.collapse-btn:hover { border-color: var(--accent); color: var(--text); }
+
+.sidebar-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--text-dim);
+  padding: 0 8px 6px;
+  white-space: nowrap;
+}
+
+.sidebar-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.side-tab {
+  display: flex;
+  align-items: stretch;
+  border-radius: 11px;
+  position: relative;
+  overflow: hidden;
+}
+
+.side-tab .side-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  border: none;
+  background: none;
+  border-radius: 11px;
+  padding: 9px 10px;
+  font-weight: 600;
+  font-size: 14.5px;
+  color: var(--text-dim);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.13s, color 0.13s;
+}
+
+.side-tab:hover .side-main { background: var(--bg-sunken); color: var(--text); }
+
+.side-tab.active .side-main {
+  background: var(--accent-soft);
+  color: var(--text);
+  box-shadow: inset 3px 0 0 var(--chip-color, var(--accent));
+}
+
+.side-emoji { font-size: 17px; width: 22px; text-align: center; flex-shrink: 0; }
+
+.side-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.side-count {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-dim);
+  background: var(--bg-sunken);
+  border-radius: 999px;
+  padding: 1px 8px;
+  flex-shrink: 0;
+}
+
+.side-tab.active .side-count { background: var(--bg-raised); }
+
+.side-edit {
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  padding: 0 10px;
+  cursor: pointer;
+  border-radius: 9px;
+  opacity: 0;
+  transition: opacity 0.13s, color 0.13s;
+}
+
+.side-tab:hover .side-edit { opacity: 1; }
+.side-edit:hover { color: var(--accent); }
+
+.sidebar-new {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  border: 1.5px dashed var(--border-strong);
+  background: none;
+  border-radius: 11px;
+  padding: 9px 10px;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-dim);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.sidebar-new:hover { border-color: var(--accent); color: var(--accent); }
+
+/* desktop collapsed icon rail */
+@media (min-width: 700px) {
+  .sidebar.collapsed { width: 70px; padding: 14px 8px; }
+  .sidebar.collapsed .sidebar-title,
+  .sidebar.collapsed .sidebar-label,
+  .sidebar.collapsed .side-name,
+  .sidebar.collapsed .side-count,
+  .sidebar.collapsed .side-edit { display: none; }
+  .sidebar.collapsed .sidebar-head { flex-direction: column; gap: 12px; padding-bottom: 12px; }
+  .sidebar.collapsed .side-tab .side-main,
+  .sidebar.collapsed .sidebar-new { justify-content: center; padding: 10px 0; }
+}
+
+/* mobile: off-canvas drawer */
+@media (max-width: 699px) {
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    height: auto;
+    width: min(300px, 84vw);
+    transform: translateX(-103%);
+    transition: transform 0.25s ease;
+    box-shadow: var(--shadow-menu);
+    border-radius: 0 20px 20px 0;
+    padding-top: calc(14px + env(safe-area-inset-top));
+  }
+  .sidebar.open { transform: none; }
+  .sidebar .collapse-btn { display: none; }
+}
+
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 12, 6, 0.45);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  z-index: 65;
+  animation: fade-up 0.2s ease both;
 }
 
 .topbar {
@@ -117,7 +339,15 @@ button, input, textarea, select {
 
 .topbar .spacer { flex: 1; }
 
+.menu-btn { border: none; background: none; font-size: 20px; width: 38px; height: 38px; }
+
 .desktop-nav { display: none; gap: 4px; }
+
+@media (min-width: 700px) {
+  /* the sidebar carries the logo on desktop; topbar keeps just the nav */
+  .topbar .logo, .topbar .menu-btn { display: none !important; }
+  .topbar { justify-content: flex-end; }
+}
 
 .bottom-nav {
   position: fixed;
@@ -314,7 +544,17 @@ h2.section {
 
 /* ---------- greeting header ---------- */
 
-.greet { margin: 6px 2px 14px; animation: fade-up 0.25s ease both; }
+.greet {
+  margin: 6px 2px 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  animation: fade-up 0.25s ease both;
+}
+
+.greet .greet-text { flex: 1; min-width: 0; }
+.greet .search-btn { flex-shrink: 0; margin-top: 4px; }
+.icon-btn.active { border-color: var(--accent); background: var(--accent-soft); }
 
 .greet h1 {
   font-family: var(--font-display);
@@ -388,6 +628,67 @@ h2.section {
 }
 
 .compose-collapsed:hover .plus { transform: rotate(90deg); }
+
+/* mobile quick-jot dock: pinned above the bottom nav for one-handed reach */
+.compose-dock {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(66px + env(safe-area-inset-bottom));
+  z-index: 25;
+}
+
+.compose-dock .compose-collapsed {
+  box-shadow: var(--shadow-menu);
+  border-color: var(--border-strong);
+}
+
+/* mobile composer bottom sheet */
+.sheet-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 12, 6, 0.5);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  z-index: 55;
+  animation: fade-up 0.18s ease both;
+}
+
+.composer-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 60;
+  background: var(--bg-raised);
+  border-radius: 22px 22px 0 0;
+  box-shadow: var(--shadow-menu);
+  padding: 4px 12px calc(10px + env(safe-area-inset-bottom));
+  max-height: 85dvh;
+  overflow-y: auto;
+  animation: sheet-up 0.25s ease both;
+}
+
+@keyframes sheet-up {
+  from { transform: translateY(35%); opacity: 0.4; }
+  to { transform: none; opacity: 1; }
+}
+
+.sheet-handle {
+  width: 42px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--border-strong);
+  margin: 8px auto 2px;
+}
+
+.composer-sheet .composer {
+  border: none;
+  box-shadow: none;
+  background: transparent;
+  animation: none;
+  padding: 10px 4px 4px;
+}
 
 .composer { position: relative; padding: 16px 18px 14px; }
 

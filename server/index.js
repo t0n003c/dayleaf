@@ -201,7 +201,10 @@ app.delete('/api/webauthn/credentials/:id', requireAuth, (req, res) => {
 // ---------- tabs ----------
 
 app.get('/api/tabs', requireAuth, (_req, res) => {
-  res.json(db.prepare('SELECT * FROM tabs ORDER BY position, id').all());
+  res.json(db.prepare(`
+    SELECT t.*, (SELECT COUNT(*) FROM entries e WHERE e.tab_id = t.id) AS entry_count
+    FROM tabs t ORDER BY t.position, t.id
+  `).all());
 });
 
 app.post('/api/tabs', requireAuth, (req, res) => {

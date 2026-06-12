@@ -1,12 +1,14 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from './api';
 import type { Me, Tab } from './types';
 import Setup from './views/Setup';
 import Login from './views/Login';
-import InstallBanner from './components/InstallBanner';
 import Journal from './views/Journal';
 import Ask from './views/Ask';
 import Settings from './views/Settings';
+import InstallBanner from './components/InstallBanner';
+import Sidebar from './components/Sidebar';
+import TabEditor from './components/TabEditor';
 
 type View = 'journal' | 'ask' | 'settings';
 
@@ -20,8 +22,19 @@ export default function App() {
   const [me, setMe] = useState<Me | null>(null);
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [view, setView] = useState<View>('journal');
+  const [activeTab, setActiveTab] = useState<number | 'all'>(() => {
+    const saved = localStorage.getItem('dayleaf-tab');
+    return saved && saved !== 'all' ? Number(saved) : 'all';
+  });
+  const [sidebarOpen, setSidebarOpen] = useState(false); // mobile drawer
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    () => localStorage.getItem('dayleaf-sidebar') === 'collapsed'
+  );
+  const [editingTab, setEditingTab] = useState<Tab | 'new' | null>(null);
   const [composeSignal, setComposeSignal] = useState(0);
   const [toast, setToast] = useState('');
+  const sidebarOpenRef = useRef(false);
+  sidebarOpenRef.current = sidebarOpen;
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -32,10 +45,54 @@ export default function App() {
   const refreshTabs = useCallback(() => api.get('/api/tabs').then(setTabs), []);
 
   useEffect(() => { refreshMe(); }, [refreshMe]);
-
+  useEffect(() => { if (me?.authed) refreshTabs(); }, [me?.authed, refreshTabs]);
+  useEffect(() => { localStorage.setItem('dayleaf-tab', String(activeTab)); }, [activeTab]);
   useEffect(() => {
-    if (me?.authed) refreshTabs();
-  }, [me?.authed, refreshTabs]);
+    localStorage.setItem('dayleaf-sidebar', sidebarCollapsed ? 'collapsed' : 'open');
+  }, [sidebarCollapsed]);
+
+  // If the active tab was deleted, fall back to All.
+  useEffect(() => {
+    if (activeTab !== 'all' && tabs.length > 0 && !tabs.some((t) => t.id === activeTab)) {
+      setActiveTab('all');
+    }
+  }, [tabs, activeTab]);
+
+  // Edge-swipe gestures for the mobile drawer: swipe right from the left
+  // screen edge to open; swipe left anywhere (while open) to close.
+  useEffect(() => {
+    let startX = 0, startY = 0, fromEdge = false, tracking = false;
+    const onStart = (e: TouchEvent) => {
+      const t = e.touches[0];
+      startX = t.clientX;
+      startY = t.clientY;
+      fromEdge = t.clientX < 28;
+      tracking = true;
+    };
+    const onMove = (e: TouchEvent) => {
+      if (!tracking) return;
+      const t = e.touches[0];
+      const dx = t.clientX - startX;
+      const dy = t.clientY - startY;
+      if (Math.abs(dy) > 70) { tracking = false; return; } // it's a scroll
+      if (!sidebarOpenRef.current && fromEdge && dx > 60) {
+        setSidebarOpen(true);
+        tracking = false;
+      } else if (sidebarOpenRef.current && dx < -60) {
+        setSidebarOpen(false);
+        tracking = false;
+      }
+    };
+    const onEnd = () => { tracking = false; };
+    document.addEventListener('touchstart', onStart, { passive: true });
+    document.addEventListener('touchmove', onMove, { passive: true });
+    document.addEventListener('touchend', onEnd, { passive: true });
+    return () => {
+      document.removeEventListener('touchstart', onStart);
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend', onEnd);
+    };
+  }, []);
 
   // PWA shortcut deep links: /?action=new focuses the composer, /?action=ask opens Ask AI.
   useEffect(() => {
@@ -49,55 +106,98 @@ export default function App() {
     if (action) history.replaceState(null, '', '/');
   }, [me?.authed]);
 
+  function go(v: View) {
+    setView(v);
+    setSidebarOpen(false);
+  }
+
+  function selectTab(id: number | 'all') {
+    setActiveTab(id);
+    go('journal');
+  }
+
   if (!me) return null;
   if (me.needsSetup) return <><Setup onDone={refreshMe} /><InstallBanner /></>;
   if (!me.authed) return <><Login me={me} onDone={refreshMe} /><InstallBanner /></>;
 
   return (
-    <div className="app">
-      <header className="topbar">
-        <div className="logo">
-          <img src="/icons/icon.svg" alt="" />
-          Dayleaf
-        </div>
-        <div className="spacer" />
-        <nav className="desktop-nav">
-          {NAV.map((n) => (
-            <button
-              key={n.id}
-              className={`nav-btn ${view === n.id ? 'active' : ''}`}
-              onClick={() => setView(n.id)}
-            >
-              <span className="nav-icon">{n.icon}</span>
-              {n.label}
+    <div className="shell">
+      <Sidebar
+        tabs={tabs}
+        activeTab={activeTab}
+        collapsed={sidebarCollapsed}
+        mobileOpen={sidebarOpen}
+        onSelect={selectTab}
+        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        onClose={() => setSidebarOpen(false)}
+        onNewTab={() => { setEditingTab('new'); setSidebarOpen(false); }}
+        onEditTab={(t) => { setEditingTab(t); setSidebarOpen(false); }}
+      />
+
+      <div className="main">
+        <div className={`app view-${view}`}>
+          <header className="topbar">
+            <button className="icon-btn menu-btn" aria-label="Open journals" onClick={() => setSidebarOpen(true)}>
+              ☰
             </button>
-          ))}
-        </nav>
-      </header>
+            <div className="logo">
+              <img src="/icons/icon.svg" alt="" />
+              Dayleaf
+            </div>
+            <div className="spacer" />
+            <nav className="desktop-nav">
+              {NAV.map((n) => (
+                <button
+                  key={n.id}
+                  className={`nav-btn ${view === n.id ? 'active' : ''}`}
+                  onClick={() => go(n.id)}
+                >
+                  <span className="nav-icon">{n.icon}</span>
+                  {n.label}
+                </button>
+              ))}
+            </nav>
+          </header>
 
-      {view === 'journal' && (
-        <Journal tabs={tabs} composeSignal={composeSignal} showToast={showToast} username={me.username} />
+          {view === 'journal' && (
+            <Journal
+              tabs={tabs}
+              activeTab={activeTab}
+              composeSignal={composeSignal}
+              showToast={showToast}
+              username={me.username}
+            />
+          )}
+          {view === 'ask' && <Ask tabs={tabs} />}
+          {view === 'settings' && (
+            <Settings me={me} tabs={tabs} refreshTabs={refreshTabs} refreshMe={refreshMe} showToast={showToast} />
+          )}
+
+          <nav className="bottom-nav">
+            {NAV.map((n) => (
+              <button
+                key={n.id}
+                className={`nav-btn ${view === n.id ? 'active' : ''}`}
+                onClick={() => go(n.id)}
+              >
+                <span className="nav-icon">{n.icon}</span>
+                {n.label}
+              </button>
+            ))}
+          </nav>
+
+          {toast && <div className="toast">{toast}</div>}
+        </div>
+      </div>
+
+      {editingTab && (
+        <TabEditor
+          tab={editingTab === 'new' ? null : editingTab}
+          onClose={() => setEditingTab(null)}
+          onSaved={() => { setEditingTab(null); refreshTabs(); }}
+        />
       )}
-      {view === 'ask' && <Ask tabs={tabs} />}
-      {view === 'settings' && (
-        <Settings me={me} tabs={tabs} refreshTabs={refreshTabs} refreshMe={refreshMe} showToast={showToast} />
-      )}
-
-      <nav className="bottom-nav">
-        {NAV.map((n) => (
-          <button
-            key={n.id}
-            className={`nav-btn ${view === n.id ? 'active' : ''}`}
-            onClick={() => setView(n.id)}
-          >
-            <span className="nav-icon">{n.icon}</span>
-            {n.label}
-          </button>
-        ))}
-      </nav>
-
       <InstallBanner />
-      {toast && <div className="toast">{toast}</div>}
     </div>
   );
 }
