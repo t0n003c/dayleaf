@@ -8,9 +8,10 @@ interface Props {
   tabs: Tab[];
   showTab: boolean;
   onChanged: () => void;
+  stagger?: number;
 }
 
-export default function EntryCard({ entry, tabs, showTab, onChanged }: Props) {
+export default function EntryCard({ entry, tabs, showTab, onChanged, stagger }: Props) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(entry.content);
   const [lightbox, setLightbox] = useState<string | null>(null);
@@ -58,7 +59,7 @@ export default function EntryCard({ entry, tabs, showTab, onChanged }: Props) {
   }
 
   return (
-    <article className="card entry-card">
+    <article className="card entry-card" style={{ ['--stagger' as any]: stagger ?? 0 }}>
       <div className="entry-head">
         {showTab && (
           <span className="tab-pill" style={{ color: entry.tab_color }}>

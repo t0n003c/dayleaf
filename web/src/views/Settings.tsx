@@ -572,8 +572,11 @@ export default function Settings({ me, tabs, refreshTabs, refreshMe, showToast }
         </div>
       </div>
 
-      <p className="hint" style={{ textAlign: 'center', margin: '22px 0' }}>
+      <p className="hint" style={{ textAlign: 'center', margin: '22px 0 4px' }}>
         Dayleaf 🍃 — your days, one leaf at a time
+      </p>
+      <p className="hint kbd-hint" style={{ textAlign: 'center', margin: '0 0 22px' }}>
+        Keyboard: <kbd>N</kbd> new entry · <kbd>/</kbd> search · <kbd>G</kbd> photos
       </p>
 
       {editingTab && (

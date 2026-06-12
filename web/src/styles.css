@@ -77,6 +77,119 @@ button, input, textarea, select {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
 
+/* smooth theme switching */
+body, .card, .sidebar, .bottom-nav, .topbar, .input, .menu, .composer-sheet, .chip, .select-pill {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.18s ease;
+}
+
+/* ---------- ambient time-of-day light ---------- */
+
+[data-daypart='morning'] { --ambient: rgba(255, 178, 102, 0.16); }
+[data-daypart='day'] { --ambient: rgba(143, 206, 124, 0.13); }
+[data-daypart='evening'] { --ambient: rgba(196, 154, 255, 0.15); }
+[data-daypart='night'] { --ambient: rgba(118, 146, 255, 0.12); }
+
+.main {
+  background: radial-gradient(820px 280px at 50% -60px, var(--ambient, transparent), transparent 70%);
+}
+
+/* ---------- view transitions ---------- */
+
+/* Opacity-only and NO fill mode: a transform here would turn .view-wrap into
+   a containing block for the fixed docks, and a filled opacity animation
+   would leave a permanent stacking context that traps overlays (sheet,
+   photo viewer) beneath the bottom nav. */
+.view-wrap { animation: view-fade 0.25s ease; }
+
+@keyframes view-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ---------- falling leaves (auth screens) ---------- */
+
+.leaf-rain { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+
+.leaf-flake {
+  position: fixed;
+  top: -8vh;
+  left: var(--left, 50%);
+  opacity: 0.45;
+  animation: leaf-fall var(--dur, 11s) linear infinite;
+  animation-delay: var(--delay, 0s);
+  will-change: transform;
+}
+
+@keyframes leaf-fall {
+  0% { transform: translate3d(0, -8vh, 0) rotate(0deg); }
+  25% { transform: translate3d(30px, 24vh, 0) rotate(80deg); }
+  50% { transform: translate3d(-24px, 52vh, 0) rotate(170deg); }
+  75% { transform: translate3d(26px, 80vh, 0) rotate(250deg); }
+  100% { transform: translate3d(-14px, 112vh, 0) rotate(340deg); }
+}
+
+.auth-card { position: relative; z-index: 1; }
+
+/* ---------- leaf burst on save ---------- */
+
+.leaf-burst { pointer-events: none; }
+
+.leaf-burst span {
+  position: fixed;
+  left: 50%;
+  bottom: calc(150px + env(safe-area-inset-bottom));
+  font-size: 18px;
+  z-index: 210;
+  opacity: 0;
+  animation: burst-fly 0.95s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+}
+
+@keyframes burst-fly {
+  0% { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: translate(var(--dx, 0), var(--dy, -120px)) rotate(var(--rot, 90deg)); }
+}
+
+/* ---------- micro-motion ---------- */
+
+.entry-card { animation-delay: calc(var(--stagger, 0) * 45ms); }
+.gallery-thumb { animation-delay: calc(var(--stagger, 0) * 25ms); }
+
+.nav-btn.active .nav-icon { animation: nav-pop 0.32s cubic-bezier(0.3, 1.6, 0.5, 1); }
+
+@keyframes nav-pop {
+  0% { transform: scale(0.85); }
+  55% { transform: scale(1.22); }
+  100% { transform: none; }
+}
+
+.stat-pill.streak { animation: streak-glow 2.6s ease-in-out infinite; }
+
+@keyframes streak-glow {
+  50% { box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 45%, transparent); }
+}
+
+.viewer-img { animation: viewer-in 0.22s ease; }
+
+@keyframes viewer-in {
+  from { opacity: 0.25; transform: scale(0.975); }
+  to { opacity: 1; transform: none; }
+}
+
+kbd {
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  padding: 0 6px;
+}
+
+@media (max-width: 699px) {
+  .kbd-hint { display: none; }
+}
+
 /* ---------- layout ---------- */
 
 .shell {

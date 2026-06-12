@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { api } from '../api';
+import LeafRain from '../components/LeafRain';
 
 export default function Setup({ onDone }: { onDone: () => void }) {
   const [username, setUsername] = useState('');
@@ -25,6 +26,7 @@ export default function Setup({ onDone }: { onDone: () => void }) {
 
   return (
     <div className="auth-wrap">
+      <LeafRain />
       <div className="auth-card card">
         <img className="mark" src="/icons/icon.svg" alt="Dayleaf" />
         <h1>Welcome to Dayleaf</h1>

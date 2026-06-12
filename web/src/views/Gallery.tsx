@@ -137,7 +137,12 @@ export default function Gallery() {
           </h3>
           <div className="gallery-grid">
             {members.map(({ index, item }) => (
-              <button className="gallery-thumb" key={item.id} onClick={() => setSelected(index)}>
+              <button
+                className="gallery-thumb"
+                key={item.id}
+                style={{ ['--stagger' as any]: index % 12 }}
+                onClick={() => setSelected(index)}
+              >
                 <img src={`/api/files/${item.filename}?thumb=1`} alt="" loading="lazy" />
                 <span className="thumb-emoji">{item.tab_emoji}</span>
               </button>
@@ -152,7 +157,7 @@ export default function Gallery() {
         <div className="photo-viewer" onClick={() => setSelected(null)}>
           <div className="viewer-body" onClick={(e) => e.stopPropagation()}>
             <div className="viewer-stage">
-              <img src={`/api/files/${cur.filename}`} alt="" />
+              <img key={cur.id} className="viewer-img" src={`/api/files/${cur.filename}`} alt="" />
               {selected! > 0 && (
                 <button className="viewer-nav prev" aria-label="Previous photo" onClick={() => step(-1)}>‹</button>
               )}

@@ -3,6 +3,7 @@ import { api } from '../api';
 import { useIsMobile } from '../hooks';
 import type { Entry, FlashbackGroup, Stats, Tab } from '../types';
 import Composer from '../components/Composer';
+import { leafBurst } from '../components/celebrate';
 import EntryCard from '../components/EntryCard';
 
 const PROMPTS = [
@@ -39,11 +40,12 @@ interface Props {
   tabs: Tab[];
   activeTab: number | 'all';
   composeSignal: number;
+  searchSignal?: number;
   showToast: (msg: string) => void;
   username?: string;
 }
 
-export default function Journal({ tabs, activeTab, composeSignal, showToast, username }: Props) {
+export default function Journal({ tabs, activeTab, composeSignal, searchSignal, showToast, username }: Props) {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -74,6 +76,10 @@ export default function Journal({ tabs, activeTab, composeSignal, showToast, use
     if (composeSignal > 0) setComposerOpen(true);
   }, [composeSignal]);
 
+  useEffect(() => {
+    if (searchSignal && searchSignal > 0) setSearchOpen(true);
+  }, [searchSignal]);
+
   const grouped = useMemo(() => {
     const map = new Map<string, Entry[]>();
     for (const e of entries) {
@@ -100,7 +106,7 @@ export default function Journal({ tabs, activeTab, composeSignal, showToast, use
       placeholder={prompt}
       autoFocus
       onClose={() => setComposerOpen(false)}
-      onSaved={() => { load(); setComposerOpen(false); showToast('Saved 🍃'); }}
+      onSaved={() => { load(); setComposerOpen(false); showToast('Saved 🍃'); leafBurst(); }}
     />
   );
 
@@ -117,7 +123,7 @@ export default function Journal({ tabs, activeTab, composeSignal, showToast, use
                 ? `${activeTabObj.emoji} ${activeTabObj.name}`
                 : new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
             </span>
-            {stats && stats.streak >= 2 && <span className="stat-pill">🔥 {stats.streak}-day streak</span>}
+            {stats && stats.streak >= 2 && <span className="stat-pill streak">🔥 {stats.streak}-day streak</span>}
             {stats && stats.daysJournaled > 0 && (
               <span className="stat-pill">🍃 {stats.daysJournaled} {stats.daysJournaled === 1 ? 'day' : 'days'} journaled</span>
             )}
@@ -192,13 +198,14 @@ export default function Journal({ tabs, activeTab, composeSignal, showToast, use
             {dayLabel(date)}
             <span className="count">{dayEntries.length} {dayEntries.length === 1 ? 'entry' : 'entries'}</span>
           </h3>
-          {dayEntries.map((e) => (
+          {dayEntries.map((e, i) => (
             <EntryCard
               key={e.id}
               entry={e}
               tabs={tabs}
               showTab={activeTab === 'all'}
               onChanged={load}
+              stagger={Math.min(i, 8)}
             />
           ))}
         </section>

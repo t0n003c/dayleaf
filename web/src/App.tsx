@@ -35,9 +35,12 @@ export default function App() {
   );
   const [editingTab, setEditingTab] = useState<Tab | 'new' | null>(null);
   const [composeSignal, setComposeSignal] = useState(0);
+  const [searchSignal, setSearchSignal] = useState(0);
   const [toast, setToast] = useState('');
   const sidebarOpenRef = useRef(false);
   sidebarOpenRef.current = sidebarOpen;
+  const meRef = useRef<Me | null>(null);
+  meRef.current = me;
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -77,6 +80,33 @@ export default function App() {
   }, [refreshTabs, showToast]);
 
   useEffect(() => { refreshMe(); }, [refreshMe]);
+
+  // Ambient time-of-day tint (peach dawn / leaf day / lavender dusk / moon night)
+  useEffect(() => {
+    const apply = () => {
+      const h = new Date().getHours();
+      document.documentElement.dataset.daypart =
+        h < 5 ? 'night' : h < 11 ? 'morning' : h < 17 ? 'day' : h < 21 ? 'evening' : 'night';
+    };
+    apply();
+    const t = window.setInterval(apply, 10 * 60_000);
+    return () => window.clearInterval(t);
+  }, []);
+
+  // Desktop keyboard shortcuts: N new entry, / search, G photos
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target as HTMLElement;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+      if (!meRef.current?.authed) return;
+      if (e.key === 'n' || e.key === 'N') { e.preventDefault(); setView('journal'); setComposeSignal((n) => n + 1); }
+      if (e.key === '/') { e.preventDefault(); setView('journal'); setSearchSignal((n) => n + 1); }
+      if (e.key === 'g' || e.key === 'G') setView('gallery');
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
   useEffect(() => { if (me?.authed) refreshTabs(); }, [me?.authed, refreshTabs]);
   useEffect(() => { localStorage.setItem('dayleaf-tab', String(activeTab)); }, [activeTab]);
   useEffect(() => {
@@ -193,20 +223,23 @@ export default function App() {
             </nav>
           </header>
 
-          {view === 'journal' && (
-            <Journal
-              tabs={tabs}
-              activeTab={activeTab}
-              composeSignal={composeSignal}
-              showToast={showToast}
-              username={me.username}
-            />
-          )}
-          {view === 'ask' && <Ask tabs={tabs} />}
-          {view === 'gallery' && <Gallery />}
-          {view === 'settings' && (
-            <Settings me={me} tabs={tabs} refreshTabs={refreshTabs} refreshMe={refreshMe} showToast={showToast} />
-          )}
+          <div className="view-wrap" key={view}>
+            {view === 'journal' && (
+              <Journal
+                tabs={tabs}
+                activeTab={activeTab}
+                composeSignal={composeSignal}
+                searchSignal={searchSignal}
+                showToast={showToast}
+                username={me.username}
+              />
+            )}
+            {view === 'ask' && <Ask tabs={tabs} />}
+            {view === 'gallery' && <Gallery />}
+            {view === 'settings' && (
+              <Settings me={me} tabs={tabs} refreshTabs={refreshTabs} refreshMe={refreshMe} showToast={showToast} />
+            )}
+          </div>
 
           <nav className="bottom-nav">
             {NAV.map((n) => (
