@@ -5,7 +5,7 @@ description: Run Dayleaf's API smoke test suite against a fresh server. Use afte
 
 # Smoke-test Dayleaf
 
-There is no unit test suite; this is the project's regression gate. It exercises setup, auth (incl. wrong-password and unauthed 401), tabs, entries, photo upload/serving, search, edit/delete, export, the no-API-key ask path, TOTP setup, and the last-tab guard.
+There is no unit test suite; this is the project's regression gate (22 checks). It exercises setup, auth (incl. wrong-password and unauthed 401), tabs, entries, photo upload/serving, search, edit/delete, export, stats/streak, on-this-day, the push-reminder endpoints (VAPID key, reminder get/set, test-send with no subscriptions), the no-API-key ask path, TOTP setup, and the last-tab guard.
 
 ## Steps
 
@@ -38,3 +38,17 @@ http.createServer((q,s)=>{let b="";q.on("data",c=>b+=c);q.on("end",()=>{
 
 Then (with a logged-in cookie jar from the suite or a manual login):
 `PUT /api/settings/ai` with `{"baseUrl":"http://localhost:3211/v1","apiKey":"mock","model":"mock"}`, and `POST /api/ask` with a question — expect the literal text `mock answer` streamed back.
+
+## Reminder scheduler check (when `server/push.js` changed)
+
+Real push delivery can't be tested headlessly, but the 30s scheduler can — register a
+dummy subscription (send fails harmlessly), schedule one minute out, and verify the loop
+claims the day:
+
+1. `POST /api/push/subscribe` with endpoint `https://localhost:1/fake` and any valid-looking
+   base64url `p256dh`/`auth` keys.
+2. `PUT /api/settings/reminder` with `{"enabled":true,"tz":"UTC","time":"<HH:MM ~65s from now, UTC>"}`.
+3. Sleep ~100s, then:
+   `sqlite3 <data-dir>/dayleaf.db "SELECT value FROM settings WHERE key='reminder_last_sent'"`
+   — expect today's UTC date. (The loop claims the slot before sending, so this proves the
+   schedule fired even though the dummy send fails.)
