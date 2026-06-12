@@ -29,13 +29,15 @@ no accounts, no tracking.
   every upload is automatically optimized (converted to WebP, resized, with
   fast-loading thumbnails generated for the grids). A
   dedicated **Photos view** shows everything you've ever uploaded in a
-  month-grouped gallery with an immersive viewer (swipe through, see the entry
-  it belongs to, open the original, or delete).
+  month-grouped gallery with an immersive viewer — swipe to flip with your
+  finger, pinch to zoom, double-tap, swipe down to close.
 - **Moods** — optionally tag each entry with how you felt.
-- **Streaks & stats** — a friendly greeting with your journaling streak and
-  total days journaled.
+- **Streaks & stats** — a friendly greeting with an animated streak growth
+  ring (the leaf matures as your streak grows) and one-time milestone
+  celebrations at 3/7/14/30/60/100/180/365 days.
 - **"On this day" memories** — entries from 1/3/6 months and years ago
-  resurface at the top of your journal.
+  resurface at the top of your journal, with an optional **morning flashback
+  notification** when today has history.
 - **Daily prompts** — a rotating reflective prompt in the quick-jot bar.
 - **Daily reminder notifications** — an optional push notification at your
   chosen time if you haven't journaled yet that day (toggle in Settings →
@@ -61,7 +63,10 @@ no accounts, no tracking.
   *New entry* or *Ask AI*.
 - **Your data is yours** — single SQLite database + photo folder in one volume;
   one-click JSON export.
-- **Dark and light themes.**
+- **Alive with motion** — falling leaves and seasonal WebGL dappled light on
+  the welcome screen, leaf-burst save celebrations, a finger-following
+  drawer and dismissible composer sheet, and instant flash-free opens.
+- **Dark and light themes** with a time-of-day ambient glow.
 
 ## Quick start (NAS / docker compose)
 
