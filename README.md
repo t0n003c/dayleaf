@@ -123,7 +123,13 @@ nothing leaves your network at all.
     built-in one) with a Let's Encrypt certificate.
 
 Dayleaf is built to sit behind a reverse proxy — it honors
-`X-Forwarded-Proto`/`X-Forwarded-Host` automatically.
+`X-Forwarded-Proto`/`X-Forwarded-Host` and Cloudflare's `cf-visitor` header
+automatically. If your proxy chain still reports the wrong scheme (passkey
+setup will say *expected "http://…"*), set the `PUBLIC_ORIGIN` env var on the
+container, e.g. `PUBLIC_ORIGIN=https://journal.example.com` — that wins over
+all headers. (Heads-up for Nginx Proxy Manager users: `proxy_set_header`
+lines in the Advanced tab are silently ignored unless wrapped in your own
+`location` block, due to nginx inheritance rules.)
 
 ## Development
 

@@ -16,3 +16,6 @@ services:
     # environment:
     #   - PORT=3000        # port inside the container
     #   - DATA_DIR=/data   # where the database and photos live
+    #   - PUBLIC_ORIGIN=https://journal.example.com
+    #     # ^ only needed if biometric/passkey setup complains about a
+    #     #   wrong origin and your proxy mangles X-Forwarded-Proto

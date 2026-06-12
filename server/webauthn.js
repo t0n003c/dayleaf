@@ -13,11 +13,26 @@ import { db } from './db.js';
 const challenges = new Map(); // purpose -> challenge (single-user app)
 
 export function rpFromRequest(req) {
-  const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost';
-  const proto = req.headers['x-forwarded-proto'] || req.protocol || 'http';
-  const rpID = String(host).split(',')[0].trim().replace(/:\d+$/, '');
-  const origin = `${String(proto).split(',')[0].trim()}://${String(host).split(',')[0].trim()}`;
-  return { rpID, origin };
+  // Hard override for tricky proxy chains: PUBLIC_ORIGIN=https://journal.example.com
+  if (process.env.PUBLIC_ORIGIN) {
+    try {
+      const u = new URL(process.env.PUBLIC_ORIGIN);
+      return { rpID: u.hostname, origin: u.origin };
+    } catch {}
+  }
+  const host = String(req.headers['x-forwarded-host'] || req.headers.host || 'localhost')
+    .split(',')[0].trim();
+  let proto = String(req.headers['x-forwarded-proto'] || req.protocol || 'http')
+    .split(',')[0].trim();
+  // Cloudflare reports the real visitor scheme in cf-visitor, and unlike
+  // X-Forwarded-Proto it survives proxies (e.g. Nginx Proxy Manager) that
+  // overwrite the standard headers with their own upstream scheme.
+  const cf = req.headers['cf-visitor'];
+  if (cf) {
+    try { proto = JSON.parse(cf).scheme || proto; } catch {}
+  }
+  const rpID = host.replace(/:\d+$/, '');
+  return { rpID, origin: `${proto}://${host}` };
 }
 
 const b64url = (buf) => Buffer.from(buf).toString('base64url');
