@@ -28,9 +28,13 @@ export function clientIp(req) {
   return String(req.headers['cf-connecting-ip'] || req.ip || 'unknown').split(',')[0].trim();
 }
 
+// Passkey failures are logged for the activity feed but excluded from lockout
+// counting: a passkey can't be brute-forced (it needs a valid signature), and
+// counting them would let cancelled Face ID prompts lock the owner out.
+// Passwords and 6-digit 2FA codes ARE guessable, so those count.
 function failuresSince(windowExpr, ip = null) {
   let sql = `SELECT COUNT(*) AS n, MAX(created_at) AS last FROM login_attempts
-             WHERE success = 0 AND created_at > datetime('now', ?)`;
+             WHERE success = 0 AND method != 'passkey' AND created_at > datetime('now', ?)`;
   const params = [windowExpr];
   if (ip) { sql += ' AND ip = ?'; params.push(ip); }
   return db.prepare(sql).get(...params);

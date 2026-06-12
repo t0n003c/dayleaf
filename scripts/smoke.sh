@@ -41,7 +41,10 @@ check "wrong password"  'Wrong password' "$(curl -s -H 'Content-Type: applicatio
 check "delete entry"    '"ok":true' "$(curl -s -b $J -X DELETE $B/api/entries/1)"
 check "last-tab guard"  'Keep at least one tab' "$(curl -s -b $J -X DELETE $B/api/tabs/3; curl -s -b $J -X DELETE $B/api/tabs/2; curl -s -b $J -X DELETE $B/api/tabs/1)"
 check "login activity"  '"attempts":[{' "$(curl -s -b $J $B/api/security/activity)"
-# brute-force lockout: rack up failures (one already recorded above), then verify the gate
+# passkey failures must NOT count toward lockout (only password/2FA do)
+for _ in 1 2 3 4 5; do curl -s -o /dev/null -X POST -H 'Content-Type: application/json' -d '{"response":{"id":"garbage"}}' $B/api/webauthn/login-verify; done
+check "passkey fails don't lock" 'Wrong password' "$(curl -s -H 'Content-Type: application/json' -d '{"password":"nope"}' $B/api/login)"
+# brute-force lockout: rack up failures (two already recorded above), then verify the gate
 for _ in 1 2 3 4; do curl -s -o /dev/null -H 'Content-Type: application/json' -d '{"password":"nope"}' $B/api/login; done
 check "lockout engages"  'Too many failed attempts' "$(curl -s -H 'Content-Type: application/json' -d '{"password":"nope"}' $B/api/login)"
 check "lockout blocks even correct password" 'Too many failed attempts' "$(curl -s -H 'Content-Type: application/json' -d '{"password":"smokepass123"}' $B/api/login)"
