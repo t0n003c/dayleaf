@@ -86,8 +86,10 @@ up everything.
 
 ## Install on your phone
 
-1. Open Dayleaf in your phone browser (Safari on iOS, Chrome on Android).
-2. **iOS:** Share → *Add to Home Screen*. **Android:** menu → *Install app*.
+1. Open Dayleaf in your phone browser (Safari on iOS, Chrome on Android) —
+   a banner pops up offering to install it (a real install prompt on Android;
+   step-by-step Share → *Add to Home Screen* hints on iPhone).
+2. Or do it manually: **iOS:** Share → *Add to Home Screen*. **Android:** menu → *Install app*.
 3. Long-press the icon for quick actions: **New entry** and **Ask AI** —
    the fastest way to jot a note or ask your journal a question.
 

@@ -3,6 +3,7 @@ import { api } from './api';
 import type { Me, Tab } from './types';
 import Setup from './views/Setup';
 import Login from './views/Login';
+import InstallBanner from './components/InstallBanner';
 import Journal from './views/Journal';
 import Ask from './views/Ask';
 import Settings from './views/Settings';
@@ -49,8 +50,8 @@ export default function App() {
   }, [me?.authed]);
 
   if (!me) return null;
-  if (me.needsSetup) return <Setup onDone={refreshMe} />;
-  if (!me.authed) return <Login me={me} onDone={refreshMe} />;
+  if (me.needsSetup) return <><Setup onDone={refreshMe} /><InstallBanner /></>;
+  if (!me.authed) return <><Login me={me} onDone={refreshMe} /><InstallBanner /></>;
 
   return (
     <div className="app">
@@ -95,6 +96,7 @@ export default function App() {
         ))}
       </nav>
 
+      <InstallBanner />
       {toast && <div className="toast">{toast}</div>}
     </div>
   );
