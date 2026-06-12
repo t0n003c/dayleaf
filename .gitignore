@@ -2,5 +2,9 @@ node_modules/
 web/dist/
 data/
 dayleaf-data/
+dev-data/
+smoke-data/
+ui-verify-data/
+.claude/settings.local.json
 *.log
 .DS_Store
