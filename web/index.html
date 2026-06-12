@@ -11,6 +11,19 @@
     <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
     <title>Dayleaf</title>
+    <script>
+      // Apply the theme BEFORE first paint so there is no white flash.
+      (function () {
+        var saved = localStorage.getItem('dayleaf-theme');
+        var dark = saved ? saved === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      })();
+    </script>
+    <style>
+      /* first-paint background, present before the bundle CSS arrives */
+      html { background: #f6f3ec; }
+      html[data-theme='dark'] { background: #0f150d; }
+    </style>
   </head>
   <body>
     <div id="root"></div>

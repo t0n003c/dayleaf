@@ -1822,3 +1822,24 @@ h2.section {
   }
   body.writing .composer { z-index: 72; }
 }
+
+/* ---------- boot splash (while /api/me resolves) ---------- */
+
+.boot-splash {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+}
+
+.boot-splash img {
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  animation: boot-pulse 1.3s ease-in-out infinite;
+}
+
+@keyframes boot-pulse {
+  50% { transform: scale(1.07); opacity: 0.75; }
+}

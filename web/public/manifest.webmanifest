@@ -4,7 +4,7 @@
   "description": "Your days, one leaf at a time. A private, self-hosted journal.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#10180f",
+  "background_color": "#f6f3ec",
   "theme_color": "#1e2a1e",
   "icons": [
     { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },

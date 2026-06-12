@@ -229,7 +229,13 @@ export default function App() {
     go('journal');
   }
 
-  if (!me) return null;
+  if (!me) {
+    return (
+      <div className="boot-splash" aria-label="Loading Dayleaf">
+        <img src="/icons/icon.svg" alt="" />
+      </div>
+    );
+  }
   if (me.needsSetup) return <><Setup onDone={refreshMe} /><InstallBanner /></>;
   if (!me.authed) return <><Login me={me} onDone={refreshMe} /><InstallBanner /></>;
 

@@ -1,6 +1,6 @@
 // Dayleaf service worker: cache the app shell so the PWA opens instantly
 // (and offline), while always going to the network for API calls.
-const CACHE = 'dayleaf-v2';
+const CACHE = 'dayleaf-v3';
 
 self.addEventListener('push', (event) => {
   let data = {};
@@ -50,16 +50,21 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (event.request.method !== 'GET' || url.pathname.startsWith('/api/')) return;
 
-  // Network-first for navigations (so updates land), cache-first for assets.
+  // Stale-while-revalidate for navigations: serve the cached shell instantly
+  // (no blank screen while the network round-trips), refresh it in the
+  // background so the next launch gets any update.
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request)
-        .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put('/', copy));
-          return res;
-        })
-        .catch(() => caches.match('/'))
+      caches.match('/').then((cached) => {
+        const network = fetch(event.request)
+          .then((res) => {
+            const copy = res.clone();
+            caches.open(CACHE).then((c) => c.put('/', copy));
+            return res;
+          })
+          .catch(() => cached);
+        return cached || network;
+      })
     );
     return;
   }
