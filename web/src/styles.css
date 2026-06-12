@@ -1349,6 +1349,51 @@ h2.section {
   .install-banner { bottom: 24px; }
 }
 
+.dialog-overlay { z-index: 90; }
+
+.app-dialog { max-width: 360px; }
+
+.dialog-brand {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+}
+
+.dialog-brand img { width: 18px; height: 18px; border-radius: 5px; }
+
+.dialog-title {
+  margin: 0 0 6px;
+  font-family: var(--font-display);
+  font-size: 19px;
+}
+
+.dialog-msg {
+  margin: 0 0 4px;
+  color: var(--text-dim);
+  font-size: 14.5px;
+}
+
+.dialog-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.btn.danger-solid {
+  background: var(--danger);
+  border-color: transparent;
+  color: #fff;
+}
+
+.btn.danger-solid:hover { filter: brightness(1.08); }
+
 .toast {
   position: fixed;
   bottom: calc(96px + env(safe-area-inset-bottom));

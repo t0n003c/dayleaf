@@ -37,4 +37,5 @@ One Express server (`server/`) serves both the JSON API under `/api/*` and the b
 
 - Dates: `entry_date` is a local-time `YYYY-MM-DD` string; the frontend produces it with `toLocaleDateString('sv')`. Timestamps in the DB are UTC `datetime('now')`.
 - API errors are always `{ error: string }` with an appropriate status; the client surfaces `err.message` directly to the user.
+- Never use `window.confirm/alert/prompt` — they show the site origin ("dayleaf.example.com says"). Use `appConfirm`/`appAlert`/`appPrompt` from `web/src/components/dialog.tsx` (the `DialogHost` is mounted in `App.tsx`).
 - Photo files get random hex names in `uploads/`; the DB row in `attachments` is the source of truth, and deletion paths (entry, tab, attachment) must unlink files too.

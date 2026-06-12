@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { api } from '../api';
+import { appConfirm } from './dialog';
 import type { Entry, Tab } from '../types';
 
 interface Props {
@@ -33,7 +34,13 @@ export default function EntryCard({ entry, tabs, showTab, onChanged }: Props) {
   }
 
   async function remove() {
-    if (!confirm('Delete this entry? This cannot be undone.')) return;
+    const ok = await appConfirm({
+      title: 'Delete this entry?',
+      message: 'This cannot be undone.',
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
     await api.del(`/api/entries/${entry.id}`);
     onChanged();
   }

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { api } from '../api';
+import { appConfirm } from './dialog';
 import type { Tab } from '../types';
 
 const EMOJIS = ['🏠', '💼', '❤️', '🏃', '🍳', '✈️', '📚', '🎮', '🌱', '🧠', '💰', '🐾', '🎨', '🛠️', '🩺', '📓'];
@@ -33,7 +34,13 @@ export default function TabEditor({ tab, onClose, onSaved }: Props) {
 
   async function remove() {
     if (!tab) return;
-    if (!confirm(`Delete "${tab.name}" and ALL of its entries? This cannot be undone.`)) return;
+    const ok = await appConfirm({
+      title: `Delete “${tab.name}”?`,
+      message: 'This journal and ALL of its entries will be deleted forever.',
+      confirmLabel: 'Delete journal',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await api.del(`/api/tabs/${tab.id}`);
       onSaved();

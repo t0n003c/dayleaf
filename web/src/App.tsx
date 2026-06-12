@@ -9,6 +9,7 @@ import Settings from './views/Settings';
 import InstallBanner from './components/InstallBanner';
 import Sidebar from './components/Sidebar';
 import TabEditor from './components/TabEditor';
+import { appAlert, appConfirm, DialogHost } from './components/dialog';
 
 type View = 'journal' | 'ask' | 'settings';
 
@@ -56,14 +57,20 @@ export default function App() {
   }, [refreshTabs]);
 
   const deleteTab = useCallback(async (t: Tab) => {
-    if (!confirm(`Delete “${t.name}” and ALL of its entries? This cannot be undone.`)) return;
+    const ok = await appConfirm({
+      title: `Delete “${t.name}”?`,
+      message: 'This journal and ALL of its entries will be deleted forever.',
+      confirmLabel: 'Delete journal',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await api.del(`/api/tabs/${t.id}`);
       setActiveTab((cur) => (cur === t.id ? 'all' : cur));
       refreshTabs();
       showToast('Journal deleted');
     } catch (err: any) {
-      alert(err.message);
+      appAlert('Could not delete', err.message);
     }
   }, [refreshTabs, showToast]);
 
@@ -223,6 +230,7 @@ export default function App() {
         />
       )}
       <InstallBanner />
+      <DialogHost />
     </div>
   );
 }

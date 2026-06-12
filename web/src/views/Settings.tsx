@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { startRegistration } from '@simplewebauthn/browser';
 import QRCode from 'qrcode';
 import { api } from '../api';
+import { appAlert, appConfirm, appPrompt } from '../components/dialog';
 import type { AiSettings, Credential, Me, ReminderSettings, Tab } from '../types';
 import TabEditor from '../components/TabEditor';
 
@@ -78,7 +79,13 @@ export default function Settings({ me, tabs, refreshTabs, refreshMe, showToast }
   }, []);
 
   async function logoutEverywhere() {
-    if (!confirm('Sign out on ALL devices (including this one)?')) return;
+    const ok = await appConfirm({
+      title: 'Sign out everywhere?',
+      message: 'Every device — including this one — will need to sign in again.',
+      confirmLabel: 'Sign out everywhere',
+      danger: true,
+    });
+    if (!ok) return;
     await api.post('/api/security/logout-all');
     refreshMe();
   }
@@ -88,7 +95,7 @@ export default function Settings({ me, tabs, refreshTabs, refreshMe, showToast }
     try {
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
-        alert('Notifications were blocked. Allow them for this site in your browser settings, then try again.');
+        appAlert('Notifications blocked', 'Allow notifications for this site in your browser settings, then try again.');
         return;
       }
       const reg = await navigator.serviceWorker.ready;
@@ -111,8 +118,9 @@ export default function Settings({ me, tabs, refreshTabs, refreshMe, showToast }
       );
       showToast('Daily reminder on 🔔');
     } catch (err: any) {
-      alert(
-        `Could not enable reminders: ${err.message || err}\n\nNote: push needs HTTPS, and on iPhone the app must be installed to the Home Screen first (iOS 16.4+).`
+      appAlert(
+        'Could not enable reminders',
+        `${err.message || err}\n\nNote: push needs HTTPS, and on iPhone the app must be installed to the Home Screen first (iOS 16.4+).`
       );
     } finally {
       setReminderBusy(false);
@@ -149,7 +157,7 @@ export default function Settings({ me, tabs, refreshTabs, refreshMe, showToast }
       await api.post('/api/push/test');
       showToast('Test notification sent 🔔');
     } catch (err: any) {
-      alert(err.message);
+      appAlert('Test failed', err.message);
     }
   }
 
@@ -195,14 +203,21 @@ export default function Settings({ me, tabs, refreshTabs, refreshMe, showToast }
   }
 
   async function disableTotp() {
-    const code = prompt('Enter a current authenticator code to turn this off:');
+    const code = await appPrompt({
+      title: 'Turn off 2FA?',
+      message: 'Enter a current code from your authenticator app to confirm.',
+      placeholder: '123 456',
+      inputMode: 'numeric',
+      confirmLabel: 'Turn off',
+      danger: true,
+    });
     if (!code) return;
     try {
       await api.post('/api/totp/disable', { code });
       refreshMe();
       showToast('Authenticator disabled');
     } catch (err: any) {
-      alert(err.message);
+      appAlert('Could not turn off 2FA', err.message);
     }
   }
 
@@ -216,15 +231,22 @@ export default function Settings({ me, tabs, refreshTabs, refreshMe, showToast }
       showToast('Biometric unlock added 🔐');
     } catch (err: any) {
       if (err?.name !== 'NotAllowedError') {
-        alert(
-          `Could not add a passkey: ${err.message || err}\n\nNote: biometric unlock requires HTTPS (or http://localhost) and a hostname, not an IP address.`
+        appAlert(
+          'Could not add a passkey',
+          `${err.message || err}\n\nNote: biometric unlock requires HTTPS (or http://localhost) and a hostname, not an IP address.`
         );
       }
     }
   }
 
   async function removePasskey(id: string) {
-    if (!confirm('Remove this passkey?')) return;
+    const ok = await appConfirm({
+      title: 'Remove this passkey?',
+      message: 'Biometric unlock from that device will stop working.',
+      confirmLabel: 'Remove',
+      danger: true,
+    });
+    if (!ok) return;
     await api.del(`/api/webauthn/credentials/${encodeURIComponent(id)}`);
     setCreds(await api.get('/api/webauthn/credentials'));
     refreshMe();
