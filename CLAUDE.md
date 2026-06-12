@@ -19,7 +19,7 @@ docker build -t dayleaf:test .            # what CI runs; verifies the full stac
 
 **Port gotcha:** on this machine port 3000 is occupied by Open WebUI. Run the API on 3210+ and, if using the Vite dev server, adjust the proxy target in `web/vite.config.ts` accordingly. Stray requests to :3000 will get Open WebUI's HTML and look like bizarre API failures.
 
-There is no unit test suite — `bash scripts/smoke.sh http://localhost:3210` is the regression gate (22 curl checks against a server started with a **fresh** data dir; it runs first-time setup itself). AI streaming can be tested against a local mock of `POST /chat/completions` returning SSE. See the `smoke-test` and `release` skills for the full flows.
+There is no unit test suite — `bash scripts/smoke.sh http://localhost:3210` is the regression gate (a curl suite against a server started with a **fresh** data dir; it runs first-time setup itself, and its final checks deliberately trip the login lockout, so run it last). AI streaming can be tested against a local mock of `POST /chat/completions` returning SSE. See the `smoke-test` and `release` skills for the full flows.
 
 ## Architecture
 
