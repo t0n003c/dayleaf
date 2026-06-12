@@ -1,6 +1,6 @@
 // Dayleaf service worker: cache the app shell so the PWA opens instantly
 // (and offline), while always going to the network for API calls.
-const CACHE = 'dayleaf-v3';
+const CACHE = 'dayleaf-v4';
 
 self.addEventListener('push', (event) => {
   let data = {};
@@ -50,21 +50,21 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (event.request.method !== 'GET' || url.pathname.startsWith('/api/')) return;
 
-  // Stale-while-revalidate for navigations: serve the cached shell instantly
-  // (no blank screen while the network round-trips), refresh it in the
-  // background so the next launch gets any update.
+  // Network-first for navigations: always fetch the CURRENT index.html so it
+  // references the currently-deployed (content-hashed) JS/CSS bundles. Serving
+  // a stale cached shell that points at purged/old bundle hashes is what caused
+  // a blank screen on the first open after an update. The HTML doc is tiny and
+  // edge-cached; the white-flash is still prevented by the inline pre-paint
+  // theme in index.html and the in-app boot splash. Cache fallback = offline.
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      caches.match('/').then((cached) => {
-        const network = fetch(event.request)
-          .then((res) => {
-            const copy = res.clone();
-            caches.open(CACHE).then((c) => c.put('/', copy));
-            return res;
-          })
-          .catch(() => cached);
-        return cached || network;
-      })
+      fetch(event.request)
+        .then((res) => {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put('/', copy));
+          return res;
+        })
+        .catch(() => caches.match('/'))
     );
     return;
   }
