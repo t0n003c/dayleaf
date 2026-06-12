@@ -5,6 +5,7 @@ import { api } from '../api';
 import { appAlert, appConfirm, appPrompt } from '../components/dialog';
 import type { AiSettings, Credential, Me, ReminderSettings, Tab } from '../types';
 import TabEditor from '../components/TabEditor';
+import pkg from '../../package.json';
 
 interface Props {
   me: Me;
@@ -573,7 +574,7 @@ export default function Settings({ me, tabs, refreshTabs, refreshMe, showToast }
       </div>
 
       <p className="hint" style={{ textAlign: 'center', margin: '22px 0 4px' }}>
-        Dayleaf 🍃 — your days, one leaf at a time
+        Dayleaf v{pkg.version} 🍃 — your days, one leaf at a time
       </p>
       <p className="hint kbd-hint" style={{ textAlign: 'center', margin: '0 0 22px' }}>
         Keyboard: <kbd>N</kbd> new entry · <kbd>/</kbd> search · <kbd>G</kbd> photos
