@@ -5,17 +5,19 @@ import Setup from './views/Setup';
 import Login from './views/Login';
 import Journal from './views/Journal';
 import Ask from './views/Ask';
+import Gallery from './views/Gallery';
 import Settings from './views/Settings';
 import InstallBanner from './components/InstallBanner';
 import Sidebar from './components/Sidebar';
 import TabEditor from './components/TabEditor';
 import { appAlert, appConfirm, DialogHost } from './components/dialog';
 
-type View = 'journal' | 'ask' | 'settings';
+type View = 'journal' | 'ask' | 'gallery' | 'settings';
 
 const NAV: { id: View; icon: string; label: string }[] = [
   { id: 'journal', icon: '🍃', label: 'Journal' },
   { id: 'ask', icon: '✨', label: 'Ask' },
+  { id: 'gallery', icon: '🖼️', label: 'Photos' },
   { id: 'settings', icon: '⚙️', label: 'Settings' },
 ];
 
@@ -201,6 +203,7 @@ export default function App() {
             />
           )}
           {view === 'ask' && <Ask tabs={tabs} />}
+          {view === 'gallery' && <Gallery />}
           {view === 'settings' && (
             <Settings me={me} tabs={tabs} refreshTabs={refreshTabs} refreshMe={refreshMe} showToast={showToast} />
           )}

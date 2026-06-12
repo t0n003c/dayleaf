@@ -36,7 +36,8 @@ You verify Dayleaf's web UI in a real browser and report what you observed, with
 - Ask: question input `.ask-input`, submit `.send-btn` (on mobile the whole card docks in `.ask-dock` at the bottom and dropdown menus open UPWARD); scope/time dropdowns are `.ask-controls .dropdown` → `.select-pill` opens `.menu` with `.menu-item`s. Answers render in `.qa-item` with `.qa-meta` scope caption.
 - Settings: Reminders card has a Turn on/Turn off toggle; in headless Chrome `pushManager.subscribe` FAILS even with notifications permission granted (no push service) — expect the explanatory alert and verify state stays off; that's correct behavior, not a bug.
 - Install banner `.install-banner`: appears for coarse-pointer (mobile) visitors not running standalone — iOS UA gets Share instructions, others get an Install button once `beforeinstallprompt` fires (dispatch a synthetic cancelable event with stub `prompt`/`userChoice` to test). Dismissing snoozes 14 days via localStorage `dayleaf-install-dismissed`.
-- Nav: desktop `.desktop-nav .nav-btn` (Journal/Ask/Settings), mobile `.bottom-nav .nav-btn`.
+- Photos view (nav item 3): `.gallery-thumb` grid grouped by month; clicking opens `.photo-viewer` with `.viewer-nav.prev/.next` (also ArrowLeft/Right), `.viewer-close`, info card with `.viewer-count`, and Open original / Delete actions (delete uses the in-app dialog).
+- Nav: desktop `.desktop-nav .nav-btn` (Journal/Ask/Photos/Settings), mobile `.bottom-nav .nav-btn`.
 - Seed entries fast via `page.evaluate` POSTing FormData (`tab_id`, `content`, `mood`, `entry_date`) to `/api/entries`.
 - Viewports: desktop 1180×800; mobile 390×844 with `isMobile: true, hasTouch: true`. Dark mode: `document.documentElement.dataset.theme = 'dark'`.
 - **Wait ~600ms after navigation/state changes before screenshots** — cards have a 0.25s fade-up entrance animation and early captures show blank (opacity 0) cards.

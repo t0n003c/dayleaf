@@ -25,7 +25,10 @@ no accounts, no tracking.
   tabs you create (each with its own icon, color, and entry count). Collapsible
   sidebar on desktop, edge-swipe drawer on mobile; drag to reorder, edit and
   delete inline.
-- **Photos** — attach images or take one straight from your phone camera.
+- **Photos** — attach images or take one straight from your phone camera. A
+  dedicated **Photos view** shows everything you've ever uploaded in a
+  month-grouped gallery with an immersive viewer (swipe through, see the entry
+  it belongs to, open the original, or delete).
 - **Moods** — optionally tag each entry with how you felt.
 - **Streaks & stats** — a friendly greeting with your journaling streak and
   total days journaled.

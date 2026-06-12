@@ -35,6 +35,21 @@ export interface Entry {
   attachments: Attachment[];
 }
 
+export interface GalleryItem {
+  id: number;
+  filename: string;
+  mime: string;
+  size: number;
+  created_at: string;
+  entry_id: number;
+  entry_date: string;
+  mood: string | null;
+  snippet: string;
+  tab_name: string;
+  tab_emoji: string;
+  tab_color: string;
+}
+
 export interface Stats {
   streak: number;
   daysJournaled: number;

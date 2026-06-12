@@ -323,6 +323,23 @@ app.delete('/api/entries/:id', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
+app.get('/api/attachments', requireAuth, (req, res) => {
+  const limit = Math.min(Number(req.query.limit) || 60, 200);
+  const offset = Number(req.query.offset) || 0;
+  const items = db.prepare(`
+    SELECT a.id, a.filename, a.mime, a.size, a.created_at,
+           e.id AS entry_id, e.entry_date, e.mood, substr(e.content, 1, 240) AS snippet,
+           t.name AS tab_name, t.emoji AS tab_emoji, t.color AS tab_color
+    FROM attachments a
+    JOIN entries e ON e.id = a.entry_id
+    JOIN tabs t ON t.id = e.tab_id
+    ORDER BY e.entry_date DESC, a.id DESC
+    LIMIT ? OFFSET ?
+  `).all(limit, offset);
+  const total = db.prepare('SELECT COUNT(*) AS n FROM attachments').get().n;
+  res.json({ total, items });
+});
+
 app.delete('/api/attachments/:id', requireAuth, (req, res) => {
   const a = db.prepare('SELECT * FROM attachments WHERE id = ?').get(req.params.id);
   if (a) {

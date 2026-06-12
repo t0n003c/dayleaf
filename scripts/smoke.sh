@@ -25,6 +25,7 @@ printf '\x89PNG\r\n\x1a\n' > "$PNG"
 check "entry with photo" '"attachments":[{' "$(curl -s -b $J -F tab_id=1 -F 'content=photo entry' -F photos=@"$PNG;type=image/png" $B/api/entries)"
 FNAME=$(curl -s -b $J $B/api/entries | sed -n 's/.*"filename":"\([^"]*\)".*/\1/p' | head -1)
 check "photo serves"    "200" "$(curl -s -o /dev/null -w '%{http_code}' -b $J $B/api/files/$FNAME)"
+check "gallery list"    '"total":1' "$(curl -s -b $J $B/api/attachments)"
 check "search"          'hello smoke' "$(curl -s -b $J "$B/api/entries?q=hello")"
 check "edit entry"      'hello edited' "$(curl -s -b $J -X PUT -F 'content=hello edited' $B/api/entries/1)"
 check "unauthed 401"    "401" "$(curl -s -o /dev/null -w '%{http_code}' $B/api/entries)"
