@@ -1,6 +1,6 @@
 // Dayleaf service worker: cache the app shell so the PWA opens instantly
 // (and offline), while always going to the network for API calls.
-const CACHE = 'dayleaf-v4';
+const CACHE = 'dayleaf-v5';
 
 self.addEventListener('push', (event) => {
   let data = {};
