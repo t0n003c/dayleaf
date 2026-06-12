@@ -75,7 +75,7 @@ export default function App() {
       </header>
 
       {view === 'journal' && (
-        <Journal tabs={tabs} composeSignal={composeSignal} showToast={showToast} />
+        <Journal tabs={tabs} composeSignal={composeSignal} showToast={showToast} username={me.username} />
       )}
       {view === 'ask' && <Ask tabs={tabs} />}
       {view === 'settings' && (

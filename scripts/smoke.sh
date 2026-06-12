@@ -27,6 +27,8 @@ check "search"          'hello smoke' "$(curl -s -b $J "$B/api/entries?q=hello")
 check "edit entry"      'hello edited' "$(curl -s -b $J -X PUT -F 'content=hello edited' $B/api/entries/1)"
 check "unauthed 401"    "401" "$(curl -s -o /dev/null -w '%{http_code}' $B/api/entries)"
 check "export"          '"exportedAt"' "$(curl -s -b $J $B/api/export)"
+check "stats"           '"streak":1' "$(curl -s -b $J $B/api/stats)"
+check "on this day"     '[' "$(curl -s -b $J $B/api/onthisday)"
 check "ask w/o key"     'No AI API key' "$(curl -s -b $J -H 'Content-Type: application/json' -d '{"question":"hi"}' $B/api/ask)"
 check "totp setup"      'otpauth://totp' "$(curl -s -b $J -X POST $B/api/totp/setup)"
 check "wrong password"  'Wrong password' "$(curl -s -H 'Content-Type: application/json' -d '{"password":"nope"}' $B/api/login)"

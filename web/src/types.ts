@@ -34,6 +34,18 @@ export interface Entry {
   attachments: Attachment[];
 }
 
+export interface Stats {
+  streak: number;
+  daysJournaled: number;
+  totalEntries: number;
+}
+
+export interface FlashbackGroup {
+  label: string;
+  date: string;
+  entries: Entry[];
+}
+
 export interface AiSettings {
   baseUrl: string;
   model: string;

@@ -25,6 +25,11 @@ no accounts, no tracking.
   (each with its own icon and color).
 - **Photos** — attach images or take one straight from your phone camera.
 - **Moods** — optionally tag each entry with how you felt.
+- **Streaks & stats** — a friendly greeting with your journaling streak and
+  total days journaled.
+- **"On this day" memories** — entries from 1/3/6 months and years ago
+  resurface at the top of your journal.
+- **Daily prompts** — a rotating reflective prompt in the quick-jot bar.
 - **Timeline & search** — entries grouped by day, full-text search across everything.
 - **AI recall** — connect OpenAI, Claude, OpenRouter, Ollama, LM Studio, or any
   OpenAI-compatible API with your own key. Ask questions scoped to all tabs or
@@ -132,7 +137,6 @@ npm --prefix web run dev    # Vite dev server on :5173, proxies /api
 
 ## Roadmap ideas
 
-- "On this day" memories (what you wrote a year ago)
 - Daily reminder notifications
 - Markdown-free rich touches (checklists, highlights)
 - Native mobile wrapper with real home-screen widgets

@@ -8,9 +8,12 @@ interface Props {
   tabs: Tab[];
   defaultTab: number;
   onSaved: () => void;
+  onClose?: () => void;
+  placeholder?: string;
+  autoFocus?: boolean;
 }
 
-export default function Composer({ tabs, defaultTab, onSaved }: Props) {
+export default function Composer({ tabs, defaultTab, onSaved, onClose, placeholder, autoFocus }: Props) {
   const [tabId, setTabId] = useState(defaultTab);
   const [content, setContent] = useState('');
   const [mood, setMood] = useState('');
@@ -64,9 +67,15 @@ export default function Composer({ tabs, defaultTab, onSaved }: Props) {
 
   return (
     <div className="card composer">
+      {onClose && (
+        <button className="composer-close" onClick={onClose} aria-label="Close">
+          ✕
+        </button>
+      )}
       <textarea
         ref={textRef}
-        placeholder="What happened today?"
+        placeholder={placeholder ?? 'What happened today?'}
+        autoFocus={autoFocus}
         value={content}
         onChange={(e) => setContent(e.target.value)}
         onKeyDown={(e) => {
