@@ -5,7 +5,9 @@ description: Run Dayleaf's API smoke test suite against a fresh server. Use afte
 
 # Smoke-test Dayleaf
 
-There is no unit test suite; this is the project's regression gate (~30 checks — don't trust a hardcoded count, the suite grows). It exercises setup, auth (incl. wrong-password and unauthed 401), tabs incl. reorder, entries, photo upload/serving, search, edit/delete, export, stats/streak, on-this-day, display name, the push-reminder endpoints (VAPID key, reminder get/set, memories flashback toggle, test-send with no subscriptions), the no-API-key ask path, TOTP setup, the last-tab guard, the login-activity endpoint, and the brute-force lockout (passkey failures must NOT lock; password failures must). The lockout checks run LAST because they poison login for 15 minutes within that data dir.
+There is no unit test suite; this is the project's regression gate (~38 checks — don't trust a hardcoded count, the suite grows). It exercises setup, auth (incl. wrong-password and unauthed 401), tabs incl. reorder, entries, photo upload→WebP conversion + thumbnail serving, search, edit/delete, export, stats/streak, on-this-day, display name, the push-reminder endpoints (VAPID key, reminder get/set, memories flashback toggle, test-send with no subscriptions), the no-API-key ask path, TOTP setup, the last-tab guard, the login-activity endpoint, and the brute-force lockout (passkey failures must NOT lock; password failures must). It also asserts the security controls: response headers (CSP/`X-Frame-Options`), `nosniff` on served files, the cross-origin (CSRF) block, and the SSRF block on a private AI base URL. The lockout checks run LAST because they poison login for 15 minutes within that data dir.
+
+Run the server with `COOKIE_INSECURE=1` (the suite is plain-HTTP, so the default `Secure` cookie wouldn't be stored by curl).
 
 ## Steps
 
@@ -25,7 +27,7 @@ There is no unit test suite; this is the project's regression gate (~30 checks �
 
 ## AI streaming check (when `server/ai.js` or `web/src/api.ts` changed)
 
-The suite only covers the no-key error path. To test streaming, run a mock provider and point Dayleaf at it:
+The suite only covers the no-key error path. To test streaming, run a mock provider and point Dayleaf at it — **start the server with `AI_ALLOW_PRIVATE=1`**, or the SSRF guard blocks the `localhost` mock:
 
 ```bash
 node -e '
