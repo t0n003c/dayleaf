@@ -3,7 +3,9 @@ import { api } from '../api';
 import { useIsMobile } from '../hooks';
 import type { Entry, FlashbackGroup, Stats, Tab } from '../types';
 import Composer from '../components/Composer';
-import { leafBurst } from '../components/celebrate';
+import { leafBurst, milestoneMoment } from '../components/celebrate';
+import { MILESTONES } from '../components/StreakRing';
+import CountUp from '../components/CountUp';
 import EntryCard from '../components/EntryCard';
 import StreakRing from '../components/StreakRing';
 
@@ -81,6 +83,61 @@ export default function Journal({ tabs, activeTab, composeSignal, searchSignal, 
     if (searchSignal && searchSignal > 0) setSearchOpen(true);
   }, [searchSignal]);
 
+  // one-time celebration when a streak milestone is reached
+  useEffect(() => {
+    if (!stats) return;
+    if (MILESTONES.includes(stats.streak) && localStorage.getItem('dayleaf-milestone') !== String(stats.streak)) {
+      localStorage.setItem('dayleaf-milestone', String(stats.streak));
+      milestoneMoment();
+      showToast(`${stats.streak}-day streak! 🌿`);
+    }
+  }, [stats, showToast]);
+
+  // drag the sheet handle down to dismiss the mobile composer
+  useEffect(() => {
+    if (!composerOpen || !isMobile) return;
+    const sheet = document.querySelector('.composer-sheet') as HTMLElement | null;
+    const overlay = document.querySelector('.sheet-overlay') as HTMLElement | null;
+    const grip = sheet?.querySelector('.sheet-grip') as HTMLElement | null;
+    if (!sheet || !grip) return;
+    let sy = 0, dy = 0, raf = 0, active = false;
+    const height = () => sheet.getBoundingClientRect().height || 300;
+    const paint = () => {
+      raf = 0;
+      sheet.style.transition = 'none';
+      sheet.style.transform = `translateY(${Math.max(0, dy)}px)`;
+      if (overlay) {
+        overlay.style.transition = 'none';
+        overlay.style.opacity = String(Math.max(0, 1 - Math.max(0, dy) / height()));
+      }
+    };
+    const sched = () => { if (!raf) raf = requestAnimationFrame(paint); };
+    const onStart = (e: TouchEvent) => { sy = e.touches[0].clientY; dy = 0; active = true; };
+    const onMove = (e: TouchEvent) => { if (!active) return; dy = e.touches[0].clientY - sy; sched(); };
+    const onEnd = () => {
+      if (!active) return;
+      active = false;
+      if (raf) { cancelAnimationFrame(raf); raf = 0; }
+      if (dy > height() * 0.25) setComposerOpen(false);
+      else {
+        sheet.style.transition = '';
+        sheet.style.transform = '';
+        if (overlay) { overlay.style.transition = ''; overlay.style.opacity = ''; }
+      }
+    };
+    grip.addEventListener('touchstart', onStart, { passive: true });
+    grip.addEventListener('touchmove', onMove, { passive: true });
+    grip.addEventListener('touchend', onEnd, { passive: true });
+    grip.addEventListener('touchcancel', onEnd, { passive: true });
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      grip.removeEventListener('touchstart', onStart);
+      grip.removeEventListener('touchmove', onMove);
+      grip.removeEventListener('touchend', onEnd);
+      grip.removeEventListener('touchcancel', onEnd);
+    };
+  }, [composerOpen, isMobile]);
+
   const grouped = useMemo(() => {
     const map = new Map<string, Entry[]>();
     for (const e of entries) {
@@ -125,7 +182,7 @@ export default function Journal({ tabs, activeTab, composeSignal, searchSignal, 
                 : new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
             </span>
             {stats && stats.daysJournaled > 0 && (
-              <span className="stat-pill">🍃 {stats.daysJournaled} {stats.daysJournaled === 1 ? 'day' : 'days'} journaled</span>
+              <span className="stat-pill">🍃 <CountUp value={stats.daysJournaled} /> {stats.daysJournaled === 1 ? 'day' : 'days'} journaled</span>
             )}
           </div>
         </div>
@@ -162,7 +219,7 @@ export default function Journal({ tabs, activeTab, composeSignal, searchSignal, 
         <>
           <div className="sheet-overlay" onClick={() => setComposerOpen(false)} />
           <div className="composer-sheet">
-            <div className="sheet-handle" />
+            <div className="sheet-grip"><div className="sheet-handle" /></div>
             {composer}
           </div>
         </>

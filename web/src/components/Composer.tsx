@@ -26,6 +26,7 @@ export default function Composer({ tabs, defaultTab, onSaved, onClose, placehold
   const textRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => { setTabId(defaultTab); }, [defaultTab]);
+  useEffect(() => () => document.body.classList.remove('writing'), []);
 
   // Auto-grow the textarea with content.
   useEffect(() => {
@@ -81,6 +82,8 @@ export default function Composer({ tabs, defaultTab, onSaved, onClose, placehold
         placeholder={placeholder ?? 'What happened today?'}
         autoFocus={autoFocus}
         value={content}
+        onFocus={() => { if (window.matchMedia('(min-width: 700px)').matches) document.body.classList.add('writing'); }}
+        onBlur={() => document.body.classList.remove('writing')}
         onChange={(e) => setContent(e.target.value)}
         onKeyDown={(e) => {
           if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') save();

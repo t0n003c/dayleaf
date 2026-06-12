@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 // milestone, and the leaf in the centre matures with the streak —
 // sprout -> herb -> leaf -> tree. The fill sweeps in on mount.
 
-const MILESTONES = [3, 7, 14, 30, 60, 100, 180, 365];
+export const MILESTONES = [3, 7, 14, 30, 60, 100, 180, 365];
 
 function tierEmoji(streak: number): string {
   if (streak >= 60) return '🌳';

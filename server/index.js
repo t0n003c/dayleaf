@@ -21,6 +21,7 @@ import {
 } from './push.js';
 import { loginGate, recordAttempt, recentActivity, lockoutPolicy } from './security.js';
 import { optimizeUpload, thumbFile, thumbName, backfillThumbnails } from './images.js';
+import { shiftDate, targetsFor } from './memories.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
@@ -385,14 +386,6 @@ function clientToday(req) {
   return /^\d{4}-\d{2}-\d{2}$/.test(t) ? t : new Date().toISOString().slice(0, 10);
 }
 
-function shiftDate(dateStr, { years = 0, months = 0, days = 0 }) {
-  const d = new Date(`${dateStr}T12:00:00Z`);
-  d.setUTCFullYear(d.getUTCFullYear() - years);
-  d.setUTCMonth(d.getUTCMonth() - months);
-  d.setUTCDate(d.getUTCDate() - days);
-  return d.toISOString().slice(0, 10);
-}
-
 app.get('/api/stats', requireAuth, (req, res) => {
   const today = clientToday(req);
   const days = new Set(db.prepare('SELECT DISTINCT entry_date AS d FROM entries').all().map((r) => r.d));
@@ -412,17 +405,8 @@ app.get('/api/stats', requireAuth, (req, res) => {
 
 app.get('/api/onthisday', requireAuth, (req, res) => {
   const today = clientToday(req);
-  const targets = [
-    { label: '1 month ago', date: shiftDate(today, { months: 1 }) },
-    { label: '3 months ago', date: shiftDate(today, { months: 3 }) },
-    { label: '6 months ago', date: shiftDate(today, { months: 6 }) },
-  ];
-  for (let y = 1; y <= 10; y++) {
-    targets.push({ label: y === 1 ? '1 year ago' : `${y} years ago`, date: shiftDate(today, { years: y }) });
-  }
   const out = [];
-  for (const t of targets) {
-    if (t.date >= today) continue;
+  for (const t of targetsFor(today)) {
     const entries = db.prepare(
       'SELECT e.*, tb.name AS tab_name, tb.emoji AS tab_emoji, tb.color AS tab_color FROM entries e JOIN tabs tb ON tb.id = e.tab_id WHERE e.entry_date = ? ORDER BY e.created_at'
     ).all(t.date);

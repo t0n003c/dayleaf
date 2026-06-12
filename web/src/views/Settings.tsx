@@ -91,25 +91,48 @@ export default function Settings({ me, tabs, refreshTabs, refreshMe, showToast }
     refreshMe();
   }
 
+  async function ensurePushSubscription(): Promise<boolean> {
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      appAlert('Notifications blocked', 'Allow notifications for this site in your browser settings, then try again.');
+      return false;
+    }
+    const reg = await navigator.serviceWorker.ready;
+    const { publicKey } = await api.get('/api/push/vapid-key');
+    const keyBytes = Uint8Array.from(
+      atob(publicKey.replace(/-/g, '+').replace(/_/g, '/')),
+      (c) => c.charCodeAt(0)
+    );
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: keyBytes,
+    });
+    await api.post('/api/push/subscribe', { subscription: sub.toJSON() });
+    return true;
+  }
+
+  async function toggleMemories(on: boolean) {
+    setReminderBusy(true);
+    try {
+      if (on && !(await ensurePushSubscription())) return;
+      setReminder(
+        await api.put('/api/settings/reminder', {
+          memories: on,
+          tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        })
+      );
+      showToast(on ? 'Memory flashbacks on 🍂' : 'Memory flashbacks off');
+    } catch (err: any) {
+      appAlert('Could not update flashbacks', err.message || String(err));
+    } finally {
+      setReminderBusy(false);
+    }
+  }
+
   async function enableReminder() {
     setReminderBusy(true);
     try {
-      const permission = await Notification.requestPermission();
-      if (permission !== 'granted') {
-        appAlert('Notifications blocked', 'Allow notifications for this site in your browser settings, then try again.');
-        return;
-      }
-      const reg = await navigator.serviceWorker.ready;
-      const { publicKey } = await api.get('/api/push/vapid-key');
-      const keyBytes = Uint8Array.from(
-        atob(publicKey.replace(/-/g, '+').replace(/_/g, '/')),
-        (c) => c.charCodeAt(0)
-      );
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: keyBytes,
-      });
-      await api.post('/api/push/subscribe', { subscription: sub.toJSON() });
+      if (!(await ensurePushSubscription())) return;
       setReminder(
         await api.put('/api/settings/reminder', {
           enabled: true,
@@ -406,6 +429,22 @@ export default function Settings({ me, tabs, refreshTabs, refreshMe, showToast }
             </button>
           ) : (
             <button className="btn small" onClick={enableReminder} disabled={reminderBusy || !pushSupported}>
+              Turn on
+            </button>
+          )}
+        </div>
+
+        <div className="settings-row">
+          <div className="grow">
+            <div className="title">“On this day” flashbacks</div>
+            <div className="sub">A morning note (~9:00) when today has memories from months or years past</div>
+          </div>
+          {reminder?.memories ? (
+            <button className="btn danger small" onClick={() => toggleMemories(false)} disabled={reminderBusy}>
+              Turn off
+            </button>
+          ) : (
+            <button className="btn small" onClick={() => toggleMemories(true)} disabled={reminderBusy || !pushSupported}>
               Turn on
             </button>
           )}

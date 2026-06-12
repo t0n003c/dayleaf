@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
+import CountUp from '../components/CountUp';
 import { appConfirm } from '../components/dialog';
 import type { GalleryItem } from '../types';
 
@@ -27,6 +28,8 @@ export default function Gallery() {
   const [slideDir, setSlideDir] = useState<0 | 1 | -1>(0); // viewer entrance direction
   const loading = useRef(false);
   const sentinel = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const selRef = useRef<number | null>(null);
 
   const loadMore = useCallback(async () => {
     if (loading.current) return;
@@ -70,6 +73,7 @@ export default function Gallery() {
   }, [items]);
 
   const cur = selected !== null ? items[selected] : null;
+  selRef.current = selected;
 
   const step = useCallback((dir: 1 | -1) => {
     setSlideDir(dir);
@@ -79,6 +83,120 @@ export default function Gallery() {
       return next >= 0 && next < itemsRef.current.length ? next : s;
     });
   }, []);
+
+  // Touch gestures in the viewer: swipe to flip (finger-following), swipe
+  // down to close, pinch to zoom, pan while zoomed, double-tap to toggle zoom.
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage || selected === null) return;
+    let mode: 'idle' | 'swipe' | 'pan' | 'pinch' = 'idle';
+    let sx = 0, sy = 0, dx = 0, dy = 0, raf = 0;
+    let zoom = 1, panX = 0, panY = 0, startZoom = 1, startDist = 0, sPanX = 0, sPanY = 0, lastTap = 0;
+    const img = () => stage.querySelector('img') as HTMLElement | null;
+    const dist = (t: TouchList) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    const paint = () => {
+      raf = 0;
+      const el = img();
+      if (!el) return;
+      el.style.transition = 'none';
+      if (zoom > 1) {
+        el.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+        el.style.opacity = '';
+      } else {
+        el.style.transform = `translate(${dx}px, ${Math.max(0, dy)}px)`;
+        el.style.opacity = String(1 - Math.min(0.55, (Math.abs(dx) + Math.max(0, dy)) / 500));
+      }
+    };
+    const sched = () => { if (!raf) raf = requestAnimationFrame(paint); };
+    const settleBack = () => {
+      const el = img();
+      if (!el) return;
+      el.style.transition = 'transform 0.26s cubic-bezier(0.3, 0.8, 0.3, 1), opacity 0.26s ease';
+      el.style.transform = zoom > 1 ? `translate(${panX}px, ${panY}px) scale(${zoom})` : '';
+      el.style.opacity = '';
+    };
+    const onStart = (e: TouchEvent) => {
+      if ((e.target as HTMLElement).closest('button')) { mode = 'idle'; return; }
+      if (e.touches.length === 2) {
+        mode = 'pinch';
+        startDist = dist(e.touches);
+        startZoom = zoom;
+        return;
+      }
+      const t = e.touches[0];
+      sx = t.clientX; sy = t.clientY; dx = 0; dy = 0;
+      const now = Date.now();
+      if (now - lastTap < 300) {
+        zoom = zoom > 1 ? 1 : 2.2;
+        panX = panY = 0;
+        settleBack();
+        lastTap = 0;
+        mode = 'idle';
+        return;
+      }
+      lastTap = now;
+      mode = zoom > 1 ? 'pan' : 'swipe';
+      sPanX = panX; sPanY = panY;
+    };
+    const onMove = (e: TouchEvent) => {
+      if (mode === 'pinch' && e.touches.length === 2) {
+        zoom = Math.min(4, Math.max(1, startZoom * (dist(e.touches) / startDist)));
+        if (zoom === 1) { panX = panY = 0; }
+        sched();
+        return;
+      }
+      if (e.touches.length !== 1) return;
+      const t = e.touches[0];
+      if (mode === 'pan') {
+        const el = img();
+        const limX = el ? ((zoom - 1) * el.offsetWidth) / 2 : 200;
+        const limY = el ? ((zoom - 1) * el.offsetHeight) / 2 : 200;
+        panX = Math.min(limX, Math.max(-limX, sPanX + (t.clientX - sx)));
+        panY = Math.min(limY, Math.max(-limY, sPanY + (t.clientY - sy)));
+        sched();
+      } else if (mode === 'swipe') {
+        dx = t.clientX - sx;
+        dy = t.clientY - sy;
+        sched();
+      }
+    };
+    const onEnd = (e: TouchEvent) => {
+      if (e.touches.length > 0) {
+        if (mode === 'pinch') {
+          mode = zoom > 1 ? 'pan' : 'idle';
+          const t = e.touches[0];
+          sx = t.clientX; sy = t.clientY; sPanX = panX; sPanY = panY;
+        }
+        return;
+      }
+      if (raf) { cancelAnimationFrame(raf); raf = 0; }
+      if (mode === 'pinch') {
+        if (zoom < 1.05) { zoom = 1; panX = panY = 0; }
+        settleBack();
+      } else if (mode === 'swipe') {
+        const s = selRef.current ?? 0;
+        if (dx < -70 && s < itemsRef.current.length - 1) step(1);
+        else if (dx > 70 && s > 0) step(-1);
+        else if (dy > 90 && Math.abs(dx) < 60) setSelected(null);
+        else settleBack();
+      } else {
+        settleBack();
+      }
+      mode = 'idle';
+    };
+    stage.addEventListener('touchstart', onStart, { passive: true });
+    stage.addEventListener('touchmove', onMove, { passive: true });
+    stage.addEventListener('touchend', onEnd, { passive: true });
+    stage.addEventListener('touchcancel', onEnd, { passive: true });
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      stage.removeEventListener('touchstart', onStart);
+      stage.removeEventListener('touchmove', onMove);
+      stage.removeEventListener('touchend', onEnd);
+      stage.removeEventListener('touchcancel', onEnd);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cur?.id]);
 
   // keyboard navigation in the viewer
   useEffect(() => {
@@ -118,7 +236,9 @@ export default function Gallery() {
           <h1>Photos <span className="greet-emoji">🌿</span></h1>
           <div className="greet-sub">
             {total !== null && (
-              <span>{total === 0 ? 'No photos yet' : `${total} ${total === 1 ? 'memory' : 'memories'} captured`}</span>
+              <span>
+                {total === 0 ? 'No photos yet' : <><CountUp value={total} /> {total === 1 ? 'memory' : 'memories'} captured</>}
+              </span>
             )}
           </div>
         </div>
@@ -158,7 +278,7 @@ export default function Gallery() {
       {cur && (
         <div className="photo-viewer" onClick={() => setSelected(null)}>
           <div className="viewer-body" onClick={(e) => e.stopPropagation()}>
-            <div className="viewer-stage">
+            <div className="viewer-stage" ref={stageRef}>
               <img
                 key={cur.id}
                 className={`viewer-img ${slideDir === 1 ? 'slide-next' : slideDir === -1 ? 'slide-prev' : ''}`}

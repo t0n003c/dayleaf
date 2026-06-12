@@ -1,5 +1,6 @@
 import webpush from 'web-push';
 import { db, getSetting, setSetting } from './db.js';
+import { targetsFor } from './memories.js';
 
 // Web Push daily reminders. VAPID keys are generated once and kept in the
 // settings table, so they survive container restarts (they must: subscriptions
@@ -63,12 +64,14 @@ export function reminderSettings() {
     enabled: getSetting('reminder_enabled') === '1',
     time: getSetting('reminder_time') || '20:00',
     tz: getSetting('reminder_tz') || 'UTC',
+    memories: getSetting('memories_enabled') === '1',
     subscriptions: subscriptionCount(),
   };
 }
 
-export function updateReminderSettings({ enabled, time, tz }) {
+export function updateReminderSettings({ enabled, time, tz, memories }) {
   if (enabled !== undefined) setSetting('reminder_enabled', enabled ? '1' : '0');
+  if (memories !== undefined) setSetting('memories_enabled', memories ? '1' : '0');
   if (time !== undefined && /^\d{2}:\d{2}$/.test(time)) setSetting('reminder_time', time);
   if (tz !== undefined) {
     try {
@@ -96,11 +99,37 @@ const REMINDER_BODIES = [
   'Capture a little moment before the day ends.',
 ];
 
+const MEMORIES_TIME = '09:00';
+
+async function memoriesTick(parts) {
+  if (getSetting('memories_enabled') !== '1' || subscriptionCount() === 0) return;
+  if (parts.time !== MEMORIES_TIME) return;
+  if (getSetting('memories_last_sent') === parts.date) return;
+  setSetting('memories_last_sent', parts.date);
+  const targets = targetsFor(parts.date);
+  let total = 0;
+  let first = null;
+  for (const t of targets) {
+    const rows = db.prepare('SELECT content FROM entries WHERE entry_date = ?').all(t.date);
+    total += rows.length;
+    if (!first && rows.length) first = { label: t.label, content: rows[0].content };
+  }
+  if (total === 0 || !first) return;
+  const snippet = first.content.slice(0, 80).replace(/\s+/g, ' ');
+  await sendToAll({
+    title: 'Dayleaf 🍂',
+    body: `${total} ${total === 1 ? 'memory' : 'memories'} from this day — ${first.label}: “${snippet}${first.content.length > 80 ? '…' : ''}”`,
+    url: '/',
+  });
+}
+
 async function tick() {
   const cfg = reminderSettings();
-  if (!cfg.enabled || cfg.subscriptions === 0) return;
+  if (cfg.subscriptions === 0) return;
   let parts;
   try { parts = localParts(cfg.tz); } catch { parts = localParts('UTC'); }
+  await memoriesTick(parts).catch(() => {});
+  if (!cfg.enabled) return;
   if (parts.time !== cfg.time) return;
   if (getSetting('reminder_last_sent') === parts.date) return;
   setSetting('reminder_last_sent', parts.date); // claim the slot before sending to avoid duplicates

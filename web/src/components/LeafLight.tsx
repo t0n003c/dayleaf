@@ -46,6 +46,21 @@ void main() {
 }
 `;
 
+// Northern-hemisphere seasonal palettes: lush spring, golden summer,
+// amber autumn, cool sparse winter.
+function seasonPalette(dark: boolean): [string, string] {
+  const m = new Date().getMonth();
+  const season = m >= 2 && m <= 4 ? 'spring' : m >= 5 && m <= 7 ? 'summer' : m >= 8 && m <= 10 ? 'autumn' : 'winter';
+  const P: Record<string, [string, string, string, string]> = {
+    spring: ['#f3f6e9', '#c6e8a3', '#0f150d', '#27451d'],
+    summer: ['#f6f3ea', '#cfe6ae', '#0f150d', '#243a1c'],
+    autumn: ['#f7f1e4', '#e9d09b', '#15120c', '#3f3115'],
+    winter: ['#f0f3f2', '#cfe0d8', '#0d1212', '#1d302b'],
+  };
+  const [lb, lg, db, dg] = P[season];
+  return dark ? [db, dg] : [lb, lg];
+}
+
 function hexToRgb(hex: string): [number, number, number] {
   const n = parseInt(hex.slice(1), 16);
   return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
@@ -86,8 +101,9 @@ export default function LeafLight() {
     const uGlow = gl.getUniformLocation(prog, 'u_glow');
 
     const dark = document.documentElement.dataset.theme === 'dark';
-    gl.uniform3fv(uBase, hexToRgb(dark ? '#0f150d' : '#f6f3ea'));
-    gl.uniform3fv(uGlow, hexToRgb(dark ? '#243a1c' : '#cfe6ae'));
+    const [base, glow] = seasonPalette(dark);
+    gl.uniform3fv(uBase, hexToRgb(base));
+    gl.uniform3fv(uGlow, hexToRgb(glow));
 
     const resize = () => {
       const scale = Math.min(window.devicePixelRatio, 2) * 0.5; // half-res is plenty for soft light

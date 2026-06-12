@@ -1793,3 +1793,32 @@ h2.section {
 }
 
 .add-photo-tile:hover { border-color: var(--accent); background: var(--accent-soft); }
+
+/* ---------- gesture & focus additions ---------- */
+
+.viewer-stage { touch-action: none; }
+.viewer-stage img { will-change: transform; }
+
+.sheet-grip { padding: 8px 0 2px; touch-action: none; cursor: grab; }
+.sheet-grip .sheet-handle { margin: 0 auto; }
+
+.leaf-burst.center span {
+  bottom: auto;
+  top: 42%;
+  font-size: 22px;
+}
+
+@media (min-width: 700px) {
+  body.writing::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 71;
+    background: color-mix(in srgb, var(--bg) 52%, transparent);
+    backdrop-filter: blur(1.5px);
+    -webkit-backdrop-filter: blur(1.5px);
+    pointer-events: none;
+    animation: view-fade 0.35s ease;
+  }
+  body.writing .composer { z-index: 72; }
+}

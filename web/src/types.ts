@@ -66,6 +66,7 @@ export interface ReminderSettings {
   enabled: boolean;
   time: string;
   tz: string;
+  memories: boolean;
   subscriptions: number;
 }
 
