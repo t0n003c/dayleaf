@@ -120,39 +120,90 @@ export default function App() {
     }
   }, [tabs, activeTab]);
 
-  // Edge-swipe gestures for the mobile drawer: swipe right from the left
-  // screen edge to open; swipe left anywhere (while open) to close.
+  // Interactive edge-swipe for the mobile drawer: the sidebar follows the
+  // finger in real time (rAF-throttled style writes), then springs to its
+  // settled state on release. Vertical movement hands the gesture back to
+  // native scrolling.
   useEffect(() => {
-    let startX = 0, startY = 0, fromEdge = false, tracking = false;
+    let startX = 0, startY = 0, dx = 0, width = 300, raf = 0;
+    let mode: 'idle' | 'maybe' | 'drag' = 'idle';
+    let openAtStart = false;
+    const sidebar = () => document.querySelector('.sidebar') as HTMLElement | null;
+    const overlay = () => document.querySelector('.sidebar-overlay') as HTMLElement | null;
+
+    const paint = () => {
+      raf = 0;
+      const el = sidebar();
+      if (!el) return;
+      const x = openAtStart
+        ? Math.min(0, Math.max(-width, dx))          // dragging closed: 0 -> -width
+        : Math.min(0, Math.max(-width, dx - width)); // dragging open: -width -> 0
+      el.style.transition = 'none';
+      el.style.transform = `translateX(${x}px)`;
+      const ov = overlay();
+      if (ov) {
+        ov.style.transition = 'none';
+        ov.style.opacity = String(Math.max(0, 1 + x / width));
+      }
+    };
+    const schedule = () => { if (!raf) raf = requestAnimationFrame(paint); };
+
+    const settle = (commit: boolean) => {
+      const el = sidebar();
+      const targetOpen = commit ? !openAtStart : openAtStart;
+      if (targetOpen !== sidebarOpenRef.current) setSidebarOpen(targetOpen);
+      // restore the CSS transition, then drop inline styles next frame so the
+      // drawer animates from wherever the finger left it to its class state
+      requestAnimationFrame(() => {
+        if (el) { el.style.transition = ''; el.style.transform = ''; }
+        const ov = overlay();
+        if (ov) { ov.style.transition = ''; ov.style.opacity = ''; }
+      });
+    };
+
     const onStart = (e: TouchEvent) => {
       const t = e.touches[0];
       startX = t.clientX;
       startY = t.clientY;
-      fromEdge = t.clientX < 28;
-      tracking = true;
+      openAtStart = sidebarOpenRef.current;
+      if (!openAtStart && t.clientX >= 28) { mode = 'idle'; return; } // open only from the edge
+      mode = 'maybe';
+      const el = sidebar();
+      width = el ? el.getBoundingClientRect().width : 300;
     };
     const onMove = (e: TouchEvent) => {
-      if (!tracking) return;
+      if (mode === 'idle') return;
       const t = e.touches[0];
-      const dx = t.clientX - startX;
-      const dy = t.clientY - startY;
-      if (Math.abs(dy) > 70) { tracking = false; return; } // it's a scroll
-      if (!sidebarOpenRef.current && fromEdge && dx > 60) {
-        setSidebarOpen(true);
-        tracking = false;
-      } else if (sidebarOpenRef.current && dx < -60) {
-        setSidebarOpen(false);
-        tracking = false;
+      const mx = t.clientX - startX;
+      const my = t.clientY - startY;
+      if (mode === 'maybe') {
+        if (Math.abs(my) > 14 && Math.abs(my) > Math.abs(mx)) { mode = 'idle'; return; }
+        if (Math.abs(mx) <= 12) return;
+        if (!openAtStart && mx < 0) { mode = 'idle'; return; }
+        mode = 'drag';
       }
+      dx = mx;
+      schedule();
     };
-    const onEnd = () => { tracking = false; };
+    const onEnd = () => {
+      if (mode !== 'drag') { mode = 'idle'; return; }
+      mode = 'idle';
+      if (raf) { cancelAnimationFrame(raf); raf = 0; }
+      const commit = openAtStart ? dx < -width * 0.32 : dx > width * 0.38;
+      settle(commit);
+      dx = 0;
+    };
+
     document.addEventListener('touchstart', onStart, { passive: true });
     document.addEventListener('touchmove', onMove, { passive: true });
     document.addEventListener('touchend', onEnd, { passive: true });
+    document.addEventListener('touchcancel', onEnd, { passive: true });
     return () => {
+      if (raf) cancelAnimationFrame(raf);
       document.removeEventListener('touchstart', onStart);
       document.removeEventListener('touchmove', onMove);
       document.removeEventListener('touchend', onEnd);
+      document.removeEventListener('touchcancel', onEnd);
     };
   }, []);
 

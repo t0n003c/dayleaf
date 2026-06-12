@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { startAuthentication } from '@simplewebauthn/browser';
 import { api } from '../api';
+import LeafLight from '../components/LeafLight';
 import LeafRain from '../components/LeafRain';
 import type { Me } from '../types';
 
@@ -64,6 +65,7 @@ export default function Login({ me, onDone }: { me: Me; onDone: () => void }) {
 
   return (
     <div className="auth-wrap">
+      <LeafLight />
       <LeafRain />
       <div className="auth-card card">
         <img className="mark" src="/icons/icon.svg" alt="Dayleaf" />
