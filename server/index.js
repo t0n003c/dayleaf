@@ -1,14 +1,14 @@
 import express from 'express';
 import multer from 'multer';
 import crypto from 'node:crypto';
-import { join, dirname, extname } from 'node:path';
+import { join, dirname, extname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync, unlinkSync } from 'node:fs';
 import * as fsExtra from 'node:fs';
 import { db, DATA_DIR, getSetting, setSetting } from './db.js';
 import {
   hashPassword, verifyPassword, createSession, destroySession,
-  getUser, sessionUser, requireAuth, newTotpSecret, totpUri, checkTotp,
+  getUser, sessionUser, requireAuth, newTotpSecret, totpUri, checkTotp, currentToken,
 } from './auth.js';
 import {
   registrationOptions, verifyRegistration, authenticationOptions,
@@ -28,7 +28,48 @@ const PORT = process.env.PORT || 3000;
 const UPLOAD_DIR = join(DATA_DIR, 'uploads');
 
 const app = express();
-app.set('trust proxy', true);
+// Trust exactly the proxy hops in front of us (Cloudflare Tunnel -> NPM = 2).
+// `true` would trust any X-Forwarded-For, letting a direct caller spoof its IP.
+app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS || 2));
+app.disable('x-powered-by');
+
+// Security headers on every response.
+app.use((_req, res, next) => {
+  res.set({
+    // The two hashes whitelist exactly the inline scripts in index.html: the
+    // pre-paint theme setter and the service-worker registration. If either
+    // script changes, its hash changes and the browser blocks it — the smoke
+    // journey asserts there are no CSP violations, so drift is caught in CI.
+    'Content-Security-Policy':
+      "default-src 'self'; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; " +
+      "script-src 'self' 'sha256-CH0jmaqZqesdpFdNeh9iAh/jt14dy6BmtkFyLZlvHFk=' " +
+      "'sha256-xgtzMOFRePiwe4kFSwITE+9gUw0JyS0j8qvYarVJChA='; " +
+      "connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; " +
+      "object-src 'none'; form-action 'self'",
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'no-referrer',
+    'Permissions-Policy': 'geolocation=(), microphone=(), camera=(), interest-cohort=()',
+  });
+  next();
+});
+
+// CSRF defense-in-depth: SameSite=Lax already blocks cross-site cookie sends,
+// but also reject state-changing API requests whose Origin isn't our own.
+app.use((req, res, next) => {
+  if (!req.path.startsWith('/api/')) return next();
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
+  const origin = req.headers.origin;
+  if (!origin) return next(); // native apps / curl send no Origin; cookie+SameSite still gates browsers
+  const host = req.headers['x-forwarded-host'] || req.headers.host;
+  try {
+    if (new URL(origin).host !== String(host).split(',')[0].trim()) {
+      return res.status(403).json({ error: 'Cross-origin request blocked' });
+    }
+  } catch { return res.status(403).json({ error: 'Bad origin' }); }
+  next();
+});
+
 app.use(express.json({ limit: '2mb' }));
 
 const upload = multer({
@@ -38,7 +79,10 @@ const upload = multer({
     filename: (_req, _file, cb) => cb(null, `${crypto.randomBytes(12).toString('hex')}.orig`),
   }),
   limits: { fileSize: 15 * 1024 * 1024, files: 6 },
-  fileFilter: (_req, file, cb) => cb(null, /^image\//.test(file.mimetype)),
+  // Raster images only — reject SVG (can carry script) and other image/* types
+  // that aren't safe to round-trip.
+  fileFilter: (_req, file, cb) =>
+    cb(null, /^image\/(jpe?g|png|gif|webp|heic|heif|avif|bmp|tiff?)$/i.test(file.mimetype)),
 });
 
 async function storePhotos(entryId, files) {
@@ -141,6 +185,9 @@ app.post('/api/password', requireAuth, (req, res) => {
   }
   if (!next || next.length < 8) return res.status(400).json({ error: 'New password must be at least 8 characters' });
   db.prepare('UPDATE users SET pass_hash = ? WHERE id = ?').run(hashPassword(next), req.user.id);
+  // Evict every other session so a stolen token can't outlive a password change.
+  const keep = currentToken(req);
+  db.prepare('DELETE FROM sessions WHERE user_id = ? AND token != ?').run(req.user.id, keep || '');
   res.json({ ok: true });
 });
 
@@ -362,18 +409,23 @@ app.delete('/api/attachments/:id', requireAuth, (req, res) => {
 });
 
 app.get('/api/files/:name', requireAuth, (req, res) => {
-  const name = req.params.name.replace(/[^a-z0-9.]/gi, '');
+  // basename() strips any path component; the regex then whitelists the
+  // charset, so the result can never escape UPLOAD_DIR.
+  const name = basename(req.params.name).replace(/[^a-z0-9.]/gi, '');
+  if (!name || name.startsWith('.')) return res.status(404).end();
+  // Never let a stored file be interpreted as active content.
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Content-Disposition', `inline; filename="${name}"`);
+  res.setHeader('Cache-Control', 'private, max-age=31536000, immutable');
   if (req.query.thumb) {
     const thumb = join(UPLOAD_DIR, 'thumbs', thumbName(name));
     if (existsSync(thumb)) {
       res.type('image/webp');
-      res.setHeader('Cache-Control', 'private, max-age=31536000, immutable');
       return res.sendFile(thumb);
     }
   }
   const path = join(UPLOAD_DIR, name);
   if (!existsSync(path)) return res.status(404).end();
-  res.setHeader('Cache-Control', 'private, max-age=31536000, immutable');
   res.sendFile(path);
 });
 

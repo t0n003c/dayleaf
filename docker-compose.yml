@@ -10,6 +10,13 @@ services:
     volumes:
       - ./dayleaf-data:/data
     restart: unless-stopped
+    # Hardening (optional but recommended):
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # The container runs as the non-root `node` user; ensure your data dir is
+    # writable by UID 1000 (e.g. `chown -R 1000:1000 ./dayleaf-data`).
     # Dayleaf needs no .env file — all app settings (AI keys, reminders,
     # your name) are configured in the UI and stored inside /data.
     # The only supported env vars, shown with their defaults:

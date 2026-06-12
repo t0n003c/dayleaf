@@ -30,22 +30,35 @@ function parseCookies(req) {
   return out;
 }
 
+// Secure by default (TLS terminates at Cloudflare). Set COOKIE_INSECURE=1 only
+// for pure plain-HTTP LAN deployments, where browsers would otherwise drop the
+// Secure cookie and login would silently fail.
+const COOKIE_SECURE = process.env.COOKIE_INSECURE === '1' ? '' : ' Secure;';
+
+function setSessionCookie(res, value, maxAge) {
+  res.setHeader(
+    'Set-Cookie',
+    `${SESSION_COOKIE}=${value}; Path=/; HttpOnly;${COOKIE_SECURE} SameSite=Lax; Max-Age=${maxAge}`
+  );
+}
+
+export function currentToken(req) {
+  return parseCookies(req)[SESSION_COOKIE] || null;
+}
+
 export function createSession(res, userId) {
   const token = crypto.randomBytes(32).toString('hex');
   const expires = new Date(Date.now() + SESSION_DAYS * 86400_000);
   db.prepare('INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)').run(
     token, userId, expires.toISOString()
   );
-  res.setHeader(
-    'Set-Cookie',
-    `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_DAYS * 86400}`
-  );
+  setSessionCookie(res, token, SESSION_DAYS * 86400);
 }
 
 export function destroySession(req, res) {
   const token = parseCookies(req)[SESSION_COOKIE];
   if (token) db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
-  res.setHeader('Set-Cookie', `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
+  setSessionCookie(res, '', 0);
 }
 
 export function getUser() {

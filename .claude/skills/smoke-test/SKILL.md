@@ -13,7 +13,7 @@ There is no unit test suite; this is the project's regression gate (~30 checks â
 2. Start a server with a **fresh** data dir (the suite runs first-time setup):
    ```bash
    rm -rf ./smoke-data
-   DATA_DIR=./smoke-data PORT=3210 npm start   # background
+   COOKIE_INSECURE=1 DATA_DIR=./smoke-data PORT=3210 npm start   # background (plain-http local)
    ```
    (Port 3000 is occupied by Open WebUI on this machine â€” never use it.)
 3. Run the suite:

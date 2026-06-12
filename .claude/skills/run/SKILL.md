@@ -12,7 +12,7 @@ description: Launch Dayleaf locally for development or manual verification. Use 
 ```bash
 npm --prefix web run build
 rm -rf ./dev-data            # only if you want a fresh first-run setup screen
-DATA_DIR=./dev-data PORT=3210 npm start
+COOKIE_INSECURE=1 AI_ALLOW_PRIVATE=1 DATA_DIR=./dev-data PORT=3210 npm start
 ```
 
 Open http://localhost:3210. First run shows the setup screen; pick any name and an 8+ char password. `dev-data/` and anything matching `data/` are gitignored.

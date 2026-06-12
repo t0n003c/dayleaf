@@ -32,6 +32,12 @@ check "gallery list"    '"total":1' "$(curl -s -b $J $B/api/attachments)"
 check "search"          'hello smoke' "$(curl -s -b $J "$B/api/entries?q=hello")"
 check "edit entry"      'hello edited' "$(curl -s -b $J -X PUT -F 'content=hello edited' $B/api/entries/1)"
 check "unauthed 401"    "401" "$(curl -s -o /dev/null -w '%{http_code}' $B/api/entries)"
+check "security headers" 'X-Frame-Options: DENY' "$(curl -s -D - -o /dev/null $B/api/me)"
+check "nosniff on files" 'nosniff' "$(curl -s -D - -o /dev/null -b $J "$B/api/files/$FNAME")"
+check "cross-origin blocked" 'Cross-origin' "$(curl -s -b $J -H 'Origin: https://evil.example' -H 'Content-Type: application/json' -d '{}' $B/api/tabs)"
+check "ssrf blocked"    'private address' "$(curl -s -b $J -X PUT -H 'Content-Type: application/json' -d '{"baseUrl":"http://169.254.169.254/v1","apiKey":"x","model":"m"}' $B/api/settings/ai > /dev/null; curl -s -b $J -X POST $B/api/ai/test)"
+# reset AI config so later checks see the default (no key) state, not the SSRF test's
+curl -s -b $J -X PUT -H 'Content-Type: application/json' -d '{"baseUrl":"https://api.openai.com/v1","apiKey":""}' $B/api/settings/ai > /dev/null
 check "export"          '"exportedAt"' "$(curl -s -b $J $B/api/export)"
 check "stats"           '"streak":1' "$(curl -s -b $J $B/api/stats)"
 check "on this day"     '[' "$(curl -s -b $J $B/api/onthisday)"

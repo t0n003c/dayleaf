@@ -177,6 +177,10 @@ npm --prefix web run dev    # Vite dev server on :5173, proxies /api
 - Multi-user support
 - AI-generated weekly recap digests
 
+## Security
+
+See [SECURITY.md](SECURITY.md) for the security posture, hardening env vars, and recommendations (notably: put Cloudflare Access in front of an internet-exposed deployment).
+
 ## License
 
 MIT

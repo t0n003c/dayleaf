@@ -19,6 +19,10 @@ RUN npm install --omit=dev --no-audit --no-fund
 COPY server ./server
 COPY --from=webbuild /app/web/dist ./web/dist
 
+# Drop root: run as the built-in `node` user and give it the data volume.
+RUN mkdir -p /data && chown -R node:node /data /app
+USER node
+
 EXPOSE 3000
 VOLUME ["/data"]
 

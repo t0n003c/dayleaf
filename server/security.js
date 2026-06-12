@@ -23,9 +23,19 @@ db.exec(`
 `);
 
 export function clientIp(req) {
-  // Cloudflare's header is the real visitor; req.ip honors X-Forwarded-For
-  // (trust proxy is on) and falls back to the socket address.
-  return String(req.headers['cf-connecting-ip'] || req.ip || 'unknown').split(',')[0].trim();
+  // Only honor proxy-supplied client IPs when the request actually came
+  // through our trusted proxy chain — Express sets req.ip from X-Forwarded-For
+  // per the `trust proxy` hop count, and marks untrusted peers as such.
+  // For untrusted peers (someone hitting the container directly on the LAN),
+  // fall back to the raw socket address so spoofed headers can't bypass the
+  // per-IP lockout or poison the activity log.
+  const trusted = req.ip && req.ip !== req.socket?.remoteAddress;
+  if (trusted) {
+    const cf = req.headers['cf-connecting-ip'];
+    if (cf) return String(cf).split(',')[0].trim();
+    return req.ip;
+  }
+  return String(req.socket?.remoteAddress || req.ip || 'unknown').split(',')[0].trim();
 }
 
 // Passkey failures are logged for the activity feed but excluded from lockout

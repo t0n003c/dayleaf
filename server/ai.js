@@ -1,8 +1,42 @@
+import dns from 'node:dns/promises';
+import net from 'node:net';
 import { db, getSetting } from './db.js';
 
 // Talks to any OpenAI-compatible chat completions API (OpenAI, OpenRouter,
 // Ollama, LM Studio, Anthropic's compatibility endpoint, ...). The base URL,
 // key and model all come from Settings, so the user brings their own provider.
+
+// SSRF guard: the server fetches a user-set URL, and it sits inside the home
+// LAN. Block private / loopback / link-local targets unless AI_ALLOW_PRIVATE=1
+// (needed for a local Ollama/LM Studio on the same network).
+const ALLOW_PRIVATE = process.env.AI_ALLOW_PRIVATE === '1';
+
+function isBlockedIp(ip) {
+  if (net.isIP(ip) === 0) return false;
+  const v = ip.replace(/^::ffff:/i, '');
+  if (/^(127\.|10\.|169\.254\.|192\.168\.)/.test(v)) return true;
+  if (/^172\.(1[6-9]|2\d|3[01])\./.test(v)) return true;
+  if (/^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(v)) return true; // CGNAT
+  if (v === '::1' || /^f[cde]/i.test(v) || v === '0.0.0.0') return true; // ULA/link-local v6
+  return false;
+}
+
+async function assertAllowed(baseUrl) {
+  let u;
+  try { u = new URL(baseUrl); } catch { throw new Error('Invalid AI base URL'); }
+  if (!/^https?:$/.test(u.protocol)) throw new Error('AI base URL must be http(s)');
+  if (ALLOW_PRIVATE) return;
+  // Resolve and check every A/AAAA record to defeat DNS-rebinding to internal IPs.
+  let addrs;
+  if (net.isIP(u.hostname)) addrs = [u.hostname];
+  else {
+    try { addrs = (await dns.lookup(u.hostname, { all: true })).map((a) => a.address); }
+    catch { throw new Error('AI host could not be resolved'); }
+  }
+  if (addrs.some(isBlockedIp)) {
+    throw new Error('AI base URL points to a private address (set AI_ALLOW_PRIVATE=1 for local providers)');
+  }
+}
 
 const MAX_CONTEXT_CHARS = 120_000;
 const MAX_ENTRIES = 400;
@@ -63,6 +97,7 @@ export async function streamAnswer({ question, tabIds, from, to }, res) {
   }
   const messages = buildPrompt(question, { tabIds, from, to });
 
+  await assertAllowed(baseUrl);
   const upstream = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -106,6 +141,7 @@ export async function streamAnswer({ question, tabIds, from, to }, res) {
 
 export async function testConnection() {
   const { baseUrl, apiKey, model } = aiConfig();
+  await assertAllowed(baseUrl);
   const r = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
     headers: {
