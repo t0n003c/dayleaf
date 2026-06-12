@@ -10,3 +10,9 @@ services:
     volumes:
       - ./dayleaf-data:/data
     restart: unless-stopped
+    # Dayleaf needs no .env file — all app settings (AI keys, reminders,
+    # your name) are configured in the UI and stored inside /data.
+    # The only supported env vars, shown with their defaults:
+    # environment:
+    #   - PORT=3000        # port inside the container
+    #   - DATA_DIR=/data   # where the database and photos live

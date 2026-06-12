@@ -139,6 +139,9 @@ npm --prefix web run dev    # Vite dev server on :5173, proxies /api
 - **Server:** Node 22+ (uses the built-in `node:sqlite` — zero native deps), Express.
 - **Web:** React + Vite + TypeScript PWA.
 - **Storage:** one SQLite file + an uploads folder, both inside `/data`.
+- **No `.env` file:** all settings are configured in the UI and stored in the
+  database. The only env vars are `PORT` (default 3000) and `DATA_DIR`
+  (default `/data`), and the compose file already handles both.
 - **Images:** published to GHCR for `amd64` and `arm64` via GitHub Actions.
 
 ## Roadmap ideas

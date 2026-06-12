@@ -5,5 +5,7 @@ data
 dayleaf-data
 .git
 .github
+.env
+.env.*
 *.md
 .DS_Store
