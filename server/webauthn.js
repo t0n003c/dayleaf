@@ -37,6 +37,10 @@ export async function registrationOptions(req, user) {
       transports: c.transports ? JSON.parse(c.transports) : undefined,
     })),
     authenticatorSelection: {
+      // 'platform' asks for the device's built-in biometric (Face ID, Touch ID,
+      // fingerprint, Windows Hello) instead of password-manager extensions or
+      // roaming security keys.
+      authenticatorAttachment: 'platform',
       residentKey: 'preferred',
       userVerification: 'preferred',
     },
