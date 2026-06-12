@@ -5,7 +5,7 @@ description: Run Dayleaf's API smoke test suite against a fresh server. Use afte
 
 # Smoke-test Dayleaf
 
-There is no unit test suite; this is the project's regression gate (22 checks). It exercises setup, auth (incl. wrong-password and unauthed 401), tabs, entries, photo upload/serving, search, edit/delete, export, stats/streak, on-this-day, the push-reminder endpoints (VAPID key, reminder get/set, test-send with no subscriptions), the no-API-key ask path, TOTP setup, and the last-tab guard.
+There is no unit test suite; this is the project's regression gate (~30 checks — don't trust a hardcoded count, the suite grows). It exercises setup, auth (incl. wrong-password and unauthed 401), tabs incl. reorder, entries, photo upload/serving, search, edit/delete, export, stats/streak, on-this-day, display name, the push-reminder endpoints (VAPID key, reminder get/set, test-send with no subscriptions), the no-API-key ask path, TOTP setup, the last-tab guard, the login-activity endpoint, and the brute-force lockout (passkey failures must NOT lock; password failures must). The lockout checks run LAST because they poison login for 15 minutes within that data dir.
 
 ## Steps
 

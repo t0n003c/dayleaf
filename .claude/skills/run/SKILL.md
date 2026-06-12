@@ -49,7 +49,7 @@ const browser = await chromium.launch({
 });
 ```
 
-Log in by filling `input[type=password]` and clicking `button.primary`, then wait for `.tab-row`. Mobile: viewport 390×844 with `isMobile: true`. Dark mode: set `document.documentElement.dataset.theme = 'dark'`.
+Log in by filling `input[type=password]` and clicking `button.primary`, then wait for `.sidebar` (the old `.tab-row` no longer exists). Mobile: viewport 390×844 with `isMobile: true`. Dark mode: set `document.documentElement.dataset.theme = 'dark'`.
 
 ## Cleanup
 

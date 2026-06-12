@@ -21,8 +21,10 @@ no accounts, no tracking.
 ## Features
 
 - **Quick capture** — open the app, type, save. Plain text, no markdown clutter.
-- **Tabs** — separate journals for Home, Work, and any custom tabs you create
-  (each with its own icon and color).
+- **Tabs in a sidebar** — separate journals for Home, Work, and any custom
+  tabs you create (each with its own icon, color, and entry count). Collapsible
+  sidebar on desktop, edge-swipe drawer on mobile; drag to reorder, edit and
+  delete inline.
 - **Photos** — attach images or take one straight from your phone camera.
 - **Moods** — optionally tag each entry with how you felt.
 - **Streaks & stats** — a friendly greeting with your journaling streak and
@@ -40,7 +42,15 @@ no accounts, no tracking.
   specific ones, over the last week / month / quarter / all time. Answers stream in live.
 - **Security** — password on first launch, optional **authenticator-app 2FA**
   (Google Authenticator etc.) and optional **biometric unlock** (Face ID /
-  fingerprint via passkeys).
+  fingerprint via passkeys; when enrolled, login is biometric-first and the
+  password form only appears as a fallback). Brute-force lockouts with
+  cooldowns, a recent-login-activity log, sign-out-everywhere, and an optional
+  push alert when someone trips the lockout.
+- **One-handed mobile UX** — both the quick-jot bar and the Ask input dock at
+  the bottom of the screen, and an install banner offers the app on first
+  visit.
+- **Make it yours** — set the name Dayleaf greets you with, reorder journals,
+  pick per-tab icons and colors.
 - **Installable app (PWA)** — add to your phone's home screen and it behaves
   like a native app, including **app shortcuts**: long-press the icon for
   *New entry* or *Ask AI*.
