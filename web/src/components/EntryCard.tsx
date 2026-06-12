@@ -50,19 +50,19 @@ export default function EntryCard({ entry, tabs, showTab, onChanged }: Props) {
         <span>{time}</span>
         <span className="spacer" />
         {editing ? (
-          <>
+          <div className="entry-actions" style={{ opacity: 1 }}>
             <button className="btn ghost small" onClick={() => { setEditing(false); setDraft(entry.content); }}>
               Cancel
             </button>
             <button className="btn primary small" onClick={saveEdit} disabled={busy}>
               Save
             </button>
-          </>
+          </div>
         ) : (
-          <>
+          <div className="entry-actions">
             <button className="btn ghost small" onClick={() => setEditing(true)}>Edit</button>
             <button className="btn ghost small" onClick={remove}>Delete</button>
-          </>
+          </div>
         )}
       </div>
 

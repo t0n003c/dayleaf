@@ -14,9 +14,9 @@ you bring.
 Everything lives in a single Docker container with one data folder. No cloud,
 no accounts, no tracking.
 
-| Desktop | Ask AI (dark) | Mobile (dark) |
+| Desktop | Ask AI (dark) | Mobile |
 |---|---|---|
-| ![Desktop](docs/screenshot-desktop.png) | ![Ask AI](docs/screenshot-ask.png) | ![Mobile](docs/screenshot-mobile-dark.png) |
+| ![Desktop](docs/screenshot-desktop.png) | ![Ask AI](docs/screenshot-ask.png) | ![Mobile](docs/screenshot-mobile.png) |
 
 ## Features
 

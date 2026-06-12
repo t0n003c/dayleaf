@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import type { Tab } from '../types';
 
@@ -6,29 +6,87 @@ interface QA {
   question: string;
   answer: string;
   done: boolean;
+  scopeLabel: string;
+  rangeLabel: string;
 }
 
 const RANGES = [
   { id: 'week', label: 'Last 7 days', days: 7 },
   { id: 'month', label: 'Last 30 days', days: 30 },
   { id: 'quarter', label: 'Last 3 months', days: 92 },
+  { id: 'year', label: 'Last year', days: 365 },
   { id: 'all', label: 'All time', days: 0 },
 ];
 
 const SUGGESTIONS = [
   'What did I do last week?',
   'How have I been feeling lately?',
-  'Summarize my month',
-  'What did I say about my projects?',
+  'Summarize my month in a few lines',
+  'What have I accomplished recently?',
 ];
+
+/** A small anchored dropdown that closes on outside click or Escape. */
+function Dropdown({
+  icon,
+  summary,
+  children,
+  open,
+  onToggle,
+}: {
+  icon: string;
+  summary: string;
+  children: React.ReactNode;
+  open: boolean;
+  onToggle: (open: boolean) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onToggle(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onToggle(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open, onToggle]);
+
+  return (
+    <div className="dropdown" ref={ref}>
+      <button type="button" className={`select-pill ${open ? 'open' : ''}`} onClick={() => onToggle(!open)}>
+        <span className="select-icon">{icon}</span>
+        {summary}
+        <svg className="chevron" width="10" height="6" viewBox="0 0 10 6" fill="none">
+          <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      {open && <div className="menu">{children}</div>}
+    </div>
+  );
+}
 
 export default function Ask({ tabs }: { tabs: Tab[] }) {
   const [question, setQuestion] = useState('');
   const [scope, setScope] = useState<number[]>([]); // empty = all tabs
   const [range, setRange] = useState('month');
+  const [openMenu, setOpenMenu] = useState<'tabs' | 'range' | null>(null);
   const [history, setHistory] = useState<QA[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+
+  const scopeLabel =
+    scope.length === 0
+      ? 'All tabs'
+      : scope.length === 1
+        ? `${tabs.find((t) => t.id === scope[0])?.emoji ?? ''} ${tabs.find((t) => t.id === scope[0])?.name ?? ''}`.trim()
+        : `${scope.length} tabs`;
+  const rangeLabel = RANGES.find((r) => r.id === range)?.label ?? '';
 
   function toggleTab(id: number) {
     setScope((prev) => (prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]));
@@ -40,8 +98,9 @@ export default function Ask({ tabs }: { tabs: Tab[] }) {
     setError('');
     setBusy(true);
     setQuestion('');
+    setOpenMenu(null);
     const idx = history.length;
-    setHistory((h) => [...h, { question: text, answer: '', done: false }]);
+    setHistory((h) => [...h, { question: text, answer: '', done: false, scopeLabel, rangeLabel }]);
 
     const days = RANGES.find((r) => r.id === range)?.days ?? 30;
     const from = days
@@ -67,57 +126,91 @@ export default function Ask({ tabs }: { tabs: Tab[] }) {
 
   return (
     <>
-      <div className="card">
-        <textarea
-          className="composer"
-          style={{ width: '100%', border: 'none', background: 'transparent', resize: 'none', outline: 'none', fontSize: 16, minHeight: 48 }}
-          placeholder="Ask your journal anything…"
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(); }
-          }}
-        />
-
-        <div className="scope-row">
-          <button className={`chip ${scope.length === 0 ? 'active' : ''}`} onClick={() => setScope([])}>
-            🗂️ All tabs
+      <div className="card ask-card">
+        <div className="ask-input-wrap">
+          <textarea
+            className="ask-input"
+            placeholder="Ask your journal anything…"
+            rows={2}
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(); }
+            }}
+          />
+          <button
+            type="button"
+            className="send-btn"
+            onClick={() => ask()}
+            disabled={busy || !question.trim()}
+            aria-label="Ask"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M2.5 8h10M9 4.5L13.5 8 9 11.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </button>
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              className={`chip ${scope.includes(t.id) ? 'active' : ''}`}
-              style={{ ['--chip-color' as any]: t.color }}
-              onClick={() => toggleTab(t.id)}
-            >
-              {t.emoji} {t.name}
-            </button>
-          ))}
         </div>
 
-        <div className="scope-row">
-          {RANGES.map((r) => (
+        <div className="ask-controls">
+          <span className="ask-controls-label">Searching</span>
+
+          <Dropdown
+            icon="🗂️"
+            summary={scopeLabel}
+            open={openMenu === 'tabs'}
+            onToggle={(o) => setOpenMenu(o ? 'tabs' : null)}
+          >
             <button
-              key={r.id}
-              className={`chip ${range === r.id ? 'active' : ''}`}
-              onClick={() => setRange(r.id)}
+              type="button"
+              className={`menu-item ${scope.length === 0 ? 'selected' : ''}`}
+              onClick={() => { setScope([]); setOpenMenu(null); }}
             >
-              {r.label}
+              <span className="menu-emoji">🗂️</span> All tabs
+              {scope.length === 0 && <span className="check">✓</span>}
             </button>
-          ))}
+            <div className="menu-divider" />
+            {tabs.map((t) => (
+              <button
+                type="button"
+                key={t.id}
+                className={`menu-item ${scope.includes(t.id) ? 'selected' : ''}`}
+                onClick={() => toggleTab(t.id)}
+              >
+                <span className="menu-emoji">{t.emoji}</span> {t.name}
+                {scope.includes(t.id) && <span className="check">✓</span>}
+              </button>
+            ))}
+            <div className="menu-hint">Pick several to combine tabs</div>
+          </Dropdown>
+
+          <Dropdown
+            icon="🕐"
+            summary={rangeLabel}
+            open={openMenu === 'range'}
+            onToggle={(o) => setOpenMenu(o ? 'range' : null)}
+          >
+            {RANGES.map((r) => (
+              <button
+                type="button"
+                key={r.id}
+                className={`menu-item ${range === r.id ? 'selected' : ''}`}
+                onClick={() => { setRange(r.id); setOpenMenu(null); }}
+              >
+                {r.label}
+                {range === r.id && <span className="check">✓</span>}
+              </button>
+            ))}
+          </Dropdown>
         </div>
 
         {error && <p className="error-text">{error}</p>}
-
-        <button className="btn primary" onClick={() => ask()} disabled={busy || !question.trim()}>
-          ✨ Ask
-        </button>
       </div>
 
       {history.length === 0 && (
-        <div className="scope-row" style={{ marginTop: 14 }}>
+        <div className="suggestions">
+          <p className="suggestions-title">Try asking</p>
           {SUGGESTIONS.map((s) => (
-            <button key={s} className="chip" onClick={() => ask(s)} disabled={busy}>
+            <button key={s} type="button" className="suggestion" onClick={() => ask(s)} disabled={busy}>
               {s}
             </button>
           ))}
@@ -125,10 +218,11 @@ export default function Ask({ tabs }: { tabs: Tab[] }) {
       )}
 
       {[...history].reverse().map((qa, i) => (
-        <div className="card qa-item" key={history.length - i}>
-          <div className="qa-q">✦ {qa.question}</div>
+        <article className="card qa-item" key={history.length - i}>
+          <div className="qa-q">{qa.question}</div>
+          <div className="qa-meta">{qa.scopeLabel} · {qa.rangeLabel}</div>
           <div className={`qa-a ${qa.done ? '' : 'thinking'}`}>{qa.answer || (qa.done ? '' : ' ')}</div>
-        </div>
+        </article>
       ))}
     </>
   );
