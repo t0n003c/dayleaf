@@ -1,0 +1,102 @@
+import { useState } from 'react';
+import { api } from '../api';
+import type { Entry, Tab } from '../types';
+
+interface Props {
+  entry: Entry;
+  tabs: Tab[];
+  showTab: boolean;
+  onChanged: () => void;
+}
+
+export default function EntryCard({ entry, tabs, showTab, onChanged }: Props) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(entry.content);
+  const [lightbox, setLightbox] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const time = new Date(`${entry.created_at.replace(' ', 'T')}Z`).toLocaleTimeString(undefined, {
+    hour: 'numeric', minute: '2-digit',
+  });
+
+  async function saveEdit() {
+    setBusy(true);
+    try {
+      const form = new FormData();
+      form.set('content', draft);
+      await api.form('PUT', `/api/entries/${entry.id}`, form);
+      setEditing(false);
+      onChanged();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove() {
+    if (!confirm('Delete this entry? This cannot be undone.')) return;
+    await api.del(`/api/entries/${entry.id}`);
+    onChanged();
+  }
+
+  return (
+    <article className="card entry-card">
+      <div className="entry-head">
+        {showTab && (
+          <span className="tab-pill" style={{ color: entry.tab_color }}>
+            {entry.tab_emoji} {entry.tab_name}
+          </span>
+        )}
+        {entry.mood && <span className="mood">{entry.mood}</span>}
+        <span>{time}</span>
+        <span className="spacer" />
+        {editing ? (
+          <>
+            <button className="btn ghost small" onClick={() => { setEditing(false); setDraft(entry.content); }}>
+              Cancel
+            </button>
+            <button className="btn primary small" onClick={saveEdit} disabled={busy}>
+              Save
+            </button>
+          </>
+        ) : (
+          <>
+            <button className="btn ghost small" onClick={() => setEditing(true)}>Edit</button>
+            <button className="btn ghost small" onClick={remove}>Delete</button>
+          </>
+        )}
+      </div>
+
+      {editing ? (
+        <textarea
+          className="input"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          rows={Math.max(3, draft.split('\n').length)}
+          autoFocus
+        />
+      ) : (
+        <div className="entry-content">{entry.content}</div>
+      )}
+
+      {entry.attachments.length > 0 && (
+        <div className="entry-photos">
+          {entry.attachments.map((a) => (
+            <img
+              key={a.id}
+              src={`/api/files/${a.filename}`}
+              alt=""
+              loading="lazy"
+              onClick={() => setLightbox(`/api/files/${a.filename}`)}
+            />
+          ))}
+        </div>
+      )}
+
+      {lightbox && (
+        <div className="lightbox" onClick={() => setLightbox(null)}>
+          <img src={lightbox} alt="" />
+        </div>
+      )}
+    </article>
+  );
+}

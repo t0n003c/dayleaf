@@ -1,0 +1,344 @@
+import { useEffect, useState } from 'react';
+import { startRegistration } from '@simplewebauthn/browser';
+import QRCode from 'qrcode';
+import { api } from '../api';
+import type { AiSettings, Credential, Me, Tab } from '../types';
+import TabEditor from '../components/TabEditor';
+
+interface Props {
+  me: Me;
+  tabs: Tab[];
+  refreshTabs: () => void;
+  refreshMe: () => void;
+  showToast: (msg: string) => void;
+}
+
+const AI_PRESETS = [
+  { name: 'OpenAI', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
+  { name: 'Anthropic (Claude)', baseUrl: 'https://api.anthropic.com/v1', model: 'claude-sonnet-4-6' },
+  { name: 'OpenRouter', baseUrl: 'https://openrouter.ai/api/v1', model: 'openai/gpt-4o-mini' },
+  { name: 'Ollama (local)', baseUrl: 'http://localhost:11434/v1', model: 'llama3.2' },
+  { name: 'LM Studio (local)', baseUrl: 'http://localhost:1234/v1', model: '' },
+];
+
+export default function Settings({ me, tabs, refreshTabs, refreshMe, showToast }: Props) {
+  const [theme, setTheme] = useState(document.documentElement.dataset.theme || 'light');
+  const [editingTab, setEditingTab] = useState<Tab | 'new' | null>(null);
+
+  // AI
+  const [ai, setAi] = useState<AiSettings | null>(null);
+  const [aiKey, setAiKey] = useState('');
+  const [aiMsg, setAiMsg] = useState('');
+
+  // TOTP
+  const [totpSetup, setTotpSetup] = useState<{ qr: string; secret: string } | null>(null);
+  const [totpCode, setTotpCode] = useState('');
+  const [totpMsg, setTotpMsg] = useState('');
+
+  // Passkeys
+  const [creds, setCreds] = useState<Credential[]>([]);
+
+  // Password
+  const [pwOpen, setPwOpen] = useState(false);
+  const [pwCurrent, setPwCurrent] = useState('');
+  const [pwNext, setPwNext] = useState('');
+  const [pwMsg, setPwMsg] = useState('');
+
+  useEffect(() => {
+    api.get('/api/settings/ai').then(setAi);
+    api.get('/api/webauthn/credentials').then(setCreds);
+  }, []);
+
+  function setThemeAndSave(t: string) {
+    setTheme(t);
+    document.documentElement.dataset.theme = t;
+    localStorage.setItem('dayleaf-theme', t);
+  }
+
+  async function saveAi(patch: Partial<{ baseUrl: string; model: string; apiKey: string }>) {
+    await api.put('/api/settings/ai', patch);
+    setAi(await api.get('/api/settings/ai'));
+  }
+
+  async function testAi() {
+    setAiMsg('Testing…');
+    try {
+      if (aiKey) { await saveAi({ apiKey: aiKey }); setAiKey(''); }
+      await api.post('/api/ai/test');
+      setAiMsg('✅ Connected — AI recall is ready.');
+    } catch (err: any) {
+      setAiMsg(`❌ ${err.message}`);
+    }
+  }
+
+  async function startTotp() {
+    const { secret, uri } = await api.post('/api/totp/setup');
+    const qr = await QRCode.toDataURL(uri, { width: 380, margin: 1 });
+    setTotpSetup({ qr, secret });
+    setTotpMsg('');
+  }
+
+  async function confirmTotp() {
+    try {
+      await api.post('/api/totp/enable', { code: totpCode });
+      setTotpSetup(null);
+      setTotpCode('');
+      refreshMe();
+      showToast('Authenticator enabled 🔐');
+    } catch (err: any) {
+      setTotpMsg(err.message);
+    }
+  }
+
+  async function disableTotp() {
+    const code = prompt('Enter a current authenticator code to turn this off:');
+    if (!code) return;
+    try {
+      await api.post('/api/totp/disable', { code });
+      refreshMe();
+      showToast('Authenticator disabled');
+    } catch (err: any) {
+      alert(err.message);
+    }
+  }
+
+  async function addPasskey() {
+    try {
+      const options = await api.post('/api/webauthn/register-options');
+      const response = await startRegistration(options);
+      await api.post('/api/webauthn/register-verify', { response, nickname: 'This device' });
+      setCreds(await api.get('/api/webauthn/credentials'));
+      refreshMe();
+      showToast('Biometric unlock added 🔐');
+    } catch (err: any) {
+      if (err?.name !== 'NotAllowedError') {
+        alert(
+          `Could not add a passkey: ${err.message || err}\n\nNote: biometric unlock requires HTTPS (or http://localhost) and a hostname, not an IP address.`
+        );
+      }
+    }
+  }
+
+  async function removePasskey(id: string) {
+    if (!confirm('Remove this passkey?')) return;
+    await api.del(`/api/webauthn/credentials/${encodeURIComponent(id)}`);
+    setCreds(await api.get('/api/webauthn/credentials'));
+    refreshMe();
+  }
+
+  async function changePassword() {
+    setPwMsg('');
+    try {
+      await api.post('/api/password', { current: pwCurrent, next: pwNext });
+      setPwOpen(false);
+      setPwCurrent('');
+      setPwNext('');
+      showToast('Password changed');
+    } catch (err: any) {
+      setPwMsg(err.message);
+    }
+  }
+
+  async function logout() {
+    await api.post('/api/logout');
+    refreshMe();
+  }
+
+  return (
+    <>
+      <h2 className="section">Appearance</h2>
+      <div className="card">
+        <div className="settings-row">
+          <div className="grow">
+            <div className="title">Theme</div>
+            <div className="sub">Dayleaf follows your system by default</div>
+          </div>
+          <select className="date-input" value={theme} onChange={(e) => setThemeAndSave(e.target.value)}>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </div>
+      </div>
+
+      <h2 className="section">Tabs</h2>
+      <div className="card">
+        {tabs.map((t) => (
+          <div className="tab-manage-row" key={t.id}>
+            <span className="swatch" style={{ background: t.color }} />
+            <span className="grow" style={{ flex: 1 }}>{t.emoji} {t.name}</span>
+            <button className="btn ghost small" onClick={() => setEditingTab(t)}>Edit</button>
+          </div>
+        ))}
+        <button className="btn small" style={{ marginTop: 8 }} onClick={() => setEditingTab('new')}>
+          ＋ New tab
+        </button>
+      </div>
+
+      <h2 className="section">AI recall</h2>
+      <div className="card">
+        <label className="field">
+          Provider preset
+          <select
+            className="input"
+            value=""
+            onChange={(e) => {
+              const p = AI_PRESETS.find((x) => x.name === e.target.value);
+              if (p) saveAi({ baseUrl: p.baseUrl, model: p.model });
+            }}
+          >
+            <option value="">Choose a preset…</option>
+            {AI_PRESETS.map((p) => (
+              <option key={p.name} value={p.name}>{p.name}</option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          API base URL
+          <input
+            className="input"
+            value={ai?.baseUrl ?? ''}
+            onChange={(e) => setAi(ai && { ...ai, baseUrl: e.target.value })}
+            onBlur={() => ai && saveAi({ baseUrl: ai.baseUrl })}
+            placeholder="https://api.openai.com/v1"
+          />
+        </label>
+        <label className="field">
+          Model
+          <input
+            className="input"
+            value={ai?.model ?? ''}
+            onChange={(e) => setAi(ai && { ...ai, model: e.target.value })}
+            onBlur={() => ai && saveAi({ model: ai.model })}
+            placeholder="gpt-4o-mini"
+          />
+        </label>
+        <label className="field">
+          API key {ai?.hasKey && <span style={{ color: 'var(--accent)' }}>• saved</span>}
+          <input
+            className="input"
+            type="password"
+            value={aiKey}
+            onChange={(e) => setAiKey(e.target.value)}
+            placeholder={ai?.hasKey ? '•••••••• (enter to replace)' : 'sk-…'}
+          />
+        </label>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn primary small" onClick={testAi}>Save & test connection</button>
+        </div>
+        {aiMsg && <p className="hint" style={{ marginBottom: 0 }}>{aiMsg}</p>}
+        <p className="hint">
+          Works with OpenAI, Claude, OpenRouter, Ollama, LM Studio, or any OpenAI-compatible API.
+          Your key is stored only on your own server.
+        </p>
+      </div>
+
+      <h2 className="section">Security</h2>
+      <div className="card">
+        <div className="settings-row">
+          <div className="grow">
+            <div className="title">Password</div>
+            <div className="sub">Used to unlock your journal</div>
+          </div>
+          <button className="btn small" onClick={() => setPwOpen(!pwOpen)}>Change</button>
+        </div>
+        {pwOpen && (
+          <div style={{ padding: '4px 0 12px' }}>
+            <label className="field">
+              Current password
+              <input className="input" type="password" value={pwCurrent} onChange={(e) => setPwCurrent(e.target.value)} />
+            </label>
+            <label className="field">
+              New password (8+ characters)
+              <input className="input" type="password" value={pwNext} onChange={(e) => setPwNext(e.target.value)} />
+            </label>
+            {pwMsg && <p className="error-text">{pwMsg}</p>}
+            <button className="btn primary small" onClick={changePassword}>Update password</button>
+          </div>
+        )}
+
+        <div className="settings-row">
+          <div className="grow">
+            <div className="title">Authenticator app (2FA)</div>
+            <div className="sub">Google Authenticator, Authy, 1Password…</div>
+          </div>
+          {me.totpEnabled ? (
+            <button className="btn danger small" onClick={disableTotp}>Disable</button>
+          ) : (
+            <button className="btn small" onClick={startTotp}>Enable</button>
+          )}
+        </div>
+
+        {totpSetup && (
+          <div className="qr-box">
+            <img src={totpSetup.qr} alt="TOTP QR code" />
+            <p className="hint" style={{ textAlign: 'center', margin: 0 }}>
+              Scan with your authenticator app, then enter the 6-digit code.
+            </p>
+            <code>{totpSetup.secret}</code>
+            <input
+              className="input"
+              style={{ maxWidth: 200, textAlign: 'center' }}
+              inputMode="numeric"
+              placeholder="123 456"
+              value={totpCode}
+              onChange={(e) => setTotpCode(e.target.value)}
+            />
+            {totpMsg && <p className="error-text">{totpMsg}</p>}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn ghost small" onClick={() => setTotpSetup(null)}>Cancel</button>
+              <button className="btn primary small" onClick={confirmTotp}>Verify & enable</button>
+            </div>
+          </div>
+        )}
+
+        <div className="settings-row">
+          <div className="grow">
+            <div className="title">Biometric unlock</div>
+            <div className="sub">Face ID / fingerprint via passkeys (needs HTTPS)</div>
+          </div>
+          <button className="btn small" onClick={addPasskey}>Add this device</button>
+        </div>
+        {creds.map((c) => (
+          <div className="settings-row" key={c.id}>
+            <div className="grow">
+              <div className="title" style={{ fontWeight: 400 }}>🔑 {c.nickname}</div>
+              <div className="sub">Added {c.created_at.slice(0, 10)}</div>
+            </div>
+            <button className="btn ghost small" onClick={() => removePasskey(c.id)}>Remove</button>
+          </div>
+        ))}
+
+        <div className="settings-row">
+          <div className="grow">
+            <div className="title">Session</div>
+            <div className="sub">Signed in as {me.username}</div>
+          </div>
+          <button className="btn small" onClick={logout}>Sign out</button>
+        </div>
+      </div>
+
+      <h2 className="section">Data</h2>
+      <div className="card">
+        <div className="settings-row">
+          <div className="grow">
+            <div className="title">Export journal</div>
+            <div className="sub">Download everything as JSON</div>
+          </div>
+          <a className="btn small" href="/api/export" download>Export</a>
+        </div>
+      </div>
+
+      <p className="hint" style={{ textAlign: 'center', margin: '22px 0' }}>
+        Dayleaf 🍃 — your days, one leaf at a time
+      </p>
+
+      {editingTab && (
+        <TabEditor
+          tab={editingTab === 'new' ? null : editingTab}
+          onClose={() => setEditingTab(null)}
+          onSaved={() => { setEditingTab(null); refreshTabs(); }}
+        />
+      )}
+    </>
+  );
+}

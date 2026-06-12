@@ -1,0 +1,9 @@
+node_modules
+web/node_modules
+web/dist
+data
+dayleaf-data
+.git
+.github
+*.md
+.DS_Store

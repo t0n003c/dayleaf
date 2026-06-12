@@ -1,0 +1,21 @@
+{
+  "name": "dayleaf",
+  "version": "0.1.0",
+  "description": "Dayleaf — a self-hosted daily journal with tabs, photos, and AI recall.",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "DATA_DIR=./data node --watch server/index.js",
+    "build:web": "npm --prefix web install && npm --prefix web run build"
+  },
+  "dependencies": {
+    "@simplewebauthn/server": "^9.0.3",
+    "express": "^4.21.2",
+    "multer": "^2.0.1",
+    "otplib": "^12.0.1"
+  }
+}

@@ -1,0 +1,12 @@
+services:
+  dayleaf:
+    image: ghcr.io/t0n003c/dayleaf:latest
+    # To build from source instead of pulling the published image,
+    # comment out the line above and uncomment the next one:
+    # build: .
+    container_name: dayleaf
+    ports:
+      - "3010:3000"
+    volumes:
+      - ./dayleaf-data:/data
+    restart: unless-stopped
