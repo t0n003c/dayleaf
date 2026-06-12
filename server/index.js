@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 import { join, dirname, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync, unlinkSync } from 'node:fs';
+import * as fsExtra from 'node:fs';
 import { db, DATA_DIR, getSetting, setSetting } from './db.js';
 import {
   hashPassword, verifyPassword, createSession, destroySession,
@@ -44,6 +45,12 @@ async function storePhotos(entryId, files) {
     const stored = await optimizeUpload(f.path, UPLOAD_DIR, f.mimetype);
     db.prepare('INSERT INTO attachments (entry_id, filename, original_name, mime, size) VALUES (?, ?, ?, ?, ?)')
       .run(entryId, stored.filename, f.originalname, stored.mime, stored.size);
+  }
+}
+
+function discardUploads(files) {
+  for (const f of files || []) {
+    try { unlinkSync(f.path); } catch {}
   }
 }
 
@@ -286,7 +293,7 @@ app.get('/api/entries', requireAuth, (req, res) => {
 app.post('/api/entries', requireAuth, upload.array('photos'), async (req, res) => {
   const { tab_id, content, mood, entry_date } = req.body || {};
   const tab = db.prepare('SELECT id FROM tabs WHERE id = ?').get(Number(tab_id));
-  if (!tab) return res.status(400).json({ error: 'Pick a tab' });
+  if (!tab) { discardUploads(req.files); return res.status(400).json({ error: 'Pick a tab' }); }
   if (!content?.trim() && !(req.files || []).length) {
     return res.status(400).json({ error: 'Write something or attach a photo' });
   }
@@ -302,7 +309,7 @@ app.post('/api/entries', requireAuth, upload.array('photos'), async (req, res) =
 
 app.put('/api/entries/:id', requireAuth, upload.array('photos'), async (req, res) => {
   const entry = db.prepare('SELECT * FROM entries WHERE id = ?').get(req.params.id);
-  if (!entry) return res.status(404).json({ error: 'No such entry' });
+  if (!entry) { discardUploads(req.files); return res.status(404).json({ error: 'No such entry' }); }
   const { content, mood, entry_date, tab_id } = req.body || {};
   db.prepare(
     "UPDATE entries SET content = ?, mood = ?, entry_date = ?, tab_id = ?, updated_at = datetime('now') WHERE id = ?"
@@ -513,10 +520,19 @@ app.get(/^\/(?!api\/).*/, (_req, res) => res.sendFile(join(WEB_DIST, 'index.html
 
 startReminderLoop();
 
-// Backfill thumbnails for photos uploaded before the WebP pipeline existed.
+// Backfill thumbnails for photos uploaded before the WebP pipeline existed,
+// and sweep stale .orig files (failed/interrupted uploads) older than a day.
 setTimeout(() => {
   const filenames = db.prepare('SELECT filename FROM attachments').all().map((r) => r.filename);
   backfillThumbnails(filenames, UPLOAD_DIR).catch((e) => console.error('thumb backfill failed:', e.message));
+  try {
+    const { readdirSync, statSync } = fsExtra;
+    for (const f of readdirSync(UPLOAD_DIR)) {
+      if (f.endsWith('.orig') && Date.now() - statSync(join(UPLOAD_DIR, f)).mtimeMs > 86400_000) {
+        try { unlinkSync(join(UPLOAD_DIR, f)); } catch {}
+      }
+    }
+  } catch {}
 }, 3000);
 
 app.listen(PORT, () => {

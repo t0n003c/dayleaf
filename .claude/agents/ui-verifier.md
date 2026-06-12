@@ -41,6 +41,7 @@ You verify Dayleaf's web UI in a real browser and report what you observed, with
 - Uploads are converted to WebP server-side (attachment filenames end .webp, mime image/webp); grids request `/api/files/<name>?thumb=1`, viewers/lightboxes the full file. Seed with REAL images (sharp must decode them) — a fake 8-byte PNG exercises only the keep-original fallback.
 - Seed entries fast via `page.evaluate` POSTing FormData (`tab_id`, `content`, `mood`, `entry_date`) to `/api/entries`.
 - Viewports: desktop 1180×800; mobile 390×844 with `isMobile: true, hasTouch: true`. Dark mode: `document.documentElement.dataset.theme = 'dark'`.
+- Selector traps: `text=Sign out` substring-matches "Sign out everywhere" — use exact `text="Sign out"`. Settings always renders a password-type input (the AI key field) — scope login waits to `.auth-card input[type=password]`. The mobile drawer is ~300px wide: click `.sidebar-overlay` with `position: {x: 360}` or the drawer intercepts.
 - **Wait ~600ms after navigation/state changes before screenshots** — cards have a 0.25s fade-up entrance animation and early captures show blank (opacity 0) cards.
 - For Ask-view checks, mock the AI provider: tiny HTTP server on :3211 returning SSE `choices[].delta.content` chunks ending with `data: [DONE]`, then `PUT /api/settings/ai` `{"baseUrl":"http://localhost:3211/v1","apiKey":"mock","model":"mock"}`.
 - WebAuthn/passkey flows cannot be exercised headlessly — verify only that buttons render and report that limitation.

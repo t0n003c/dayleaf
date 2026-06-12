@@ -37,8 +37,12 @@ export default function Composer({ tabs, defaultTab, onSaved, onClose, placehold
   }, [content]);
 
   function addFiles(list: FileList | null) {
-    if (!list) return;
-    setPhotos((prev) => [...prev, ...Array.from(list)].slice(0, 6));
+    if (!list || list.length === 0) return;
+    // Snapshot immediately: the FileList is LIVE, and the change handler
+    // clears input.value right after this — if React defers the state
+    // updater, a lazily-read FileList would already be empty.
+    const picked = Array.from(list);
+    setPhotos((prev) => [...prev, ...picked].slice(0, 6));
   }
 
   async function save() {
