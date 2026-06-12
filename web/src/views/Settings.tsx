@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { startRegistration } from '@simplewebauthn/browser';
 import QRCode from 'qrcode';
 import { api } from '../api';
-import type { AiSettings, Credential, Me, Tab } from '../types';
+import type { AiSettings, Credential, Me, ReminderSettings, Tab } from '../types';
 import TabEditor from '../components/TabEditor';
 
 interface Props {
@@ -38,6 +38,12 @@ export default function Settings({ me, tabs, refreshTabs, refreshMe, showToast }
   // Passkeys
   const [creds, setCreds] = useState<Credential[]>([]);
 
+  // Daily reminder
+  const [reminder, setReminder] = useState<ReminderSettings | null>(null);
+  const [reminderBusy, setReminderBusy] = useState(false);
+  const pushSupported =
+    'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+
   // Password
   const [pwOpen, setPwOpen] = useState(false);
   const [pwCurrent, setPwCurrent] = useState('');
@@ -47,7 +53,78 @@ export default function Settings({ me, tabs, refreshTabs, refreshMe, showToast }
   useEffect(() => {
     api.get('/api/settings/ai').then(setAi);
     api.get('/api/webauthn/credentials').then(setCreds);
+    api.get('/api/settings/reminder').then(setReminder);
   }, []);
+
+  async function enableReminder() {
+    setReminderBusy(true);
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        alert('Notifications were blocked. Allow them for this site in your browser settings, then try again.');
+        return;
+      }
+      const reg = await navigator.serviceWorker.ready;
+      const { publicKey } = await api.get('/api/push/vapid-key');
+      const keyBytes = Uint8Array.from(
+        atob(publicKey.replace(/-/g, '+').replace(/_/g, '/')),
+        (c) => c.charCodeAt(0)
+      );
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: keyBytes,
+      });
+      await api.post('/api/push/subscribe', { subscription: sub.toJSON() });
+      setReminder(
+        await api.put('/api/settings/reminder', {
+          enabled: true,
+          time: reminder?.time ?? '20:00',
+          tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        })
+      );
+      showToast('Daily reminder on 🔔');
+    } catch (err: any) {
+      alert(
+        `Could not enable reminders: ${err.message || err}\n\nNote: push needs HTTPS, and on iPhone the app must be installed to the Home Screen first (iOS 16.4+).`
+      );
+    } finally {
+      setReminderBusy(false);
+    }
+  }
+
+  async function disableReminder() {
+    setReminderBusy(true);
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) {
+        await api.post('/api/push/unsubscribe', { endpoint: sub.endpoint });
+        await sub.unsubscribe();
+      }
+      setReminder(await api.put('/api/settings/reminder', { enabled: false }));
+      showToast('Daily reminder off');
+    } finally {
+      setReminderBusy(false);
+    }
+  }
+
+  async function setReminderTime(time: string) {
+    setReminder(
+      await api.put('/api/settings/reminder', {
+        time,
+        tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      })
+    );
+  }
+
+  async function testReminder() {
+    try {
+      await api.post('/api/push/test');
+      showToast('Test notification sent 🔔');
+    } catch (err: any) {
+      alert(err.message);
+    }
+  }
 
   function setThemeAndSave(t: string) {
     setTheme(t);
@@ -230,6 +307,59 @@ export default function Settings({ me, tabs, refreshTabs, refreshMe, showToast }
           Works with OpenAI, Claude, OpenRouter, Ollama, LM Studio, or any OpenAI-compatible API.
           Your key is stored only on your own server.
         </p>
+      </div>
+
+      <h2 className="section">Reminders</h2>
+      <div className="card">
+        <div className="settings-row">
+          <div className="grow">
+            <div className="title">Daily reminder</div>
+            <div className="sub">
+              {pushSupported
+                ? 'A gentle nudge if you haven’t journaled by your chosen time'
+                : 'Not supported in this browser — on iPhone, install Dayleaf to the Home Screen first'}
+            </div>
+          </div>
+          {reminder?.enabled ? (
+            <button className="btn danger small" onClick={disableReminder} disabled={reminderBusy}>
+              Turn off
+            </button>
+          ) : (
+            <button className="btn small" onClick={enableReminder} disabled={reminderBusy || !pushSupported}>
+              Turn on
+            </button>
+          )}
+        </div>
+
+        {reminder?.enabled && (
+          <>
+            <div className="settings-row">
+              <div className="grow">
+                <div className="title">Remind me at</div>
+                <div className="sub">In your local timezone ({reminder.tz})</div>
+              </div>
+              <input
+                className="date-input"
+                type="time"
+                value={reminder.time}
+                onChange={(e) => e.target.value && setReminderTime(e.target.value)}
+              />
+            </div>
+            <div className="settings-row">
+              <div className="grow">
+                <div className="title">Test it</div>
+                <div className="sub">
+                  {reminder.subscriptions} {reminder.subscriptions === 1 ? 'device' : 'devices'} will be notified
+                </div>
+              </div>
+              <button className="btn small" onClick={testReminder}>Send test</button>
+            </div>
+            <p className="hint" style={{ marginBottom: 4 }}>
+              Skipped automatically on days you’ve already journaled. Turn it on from each device
+              (phone, desktop) you want notified.
+            </p>
+          </>
+        )}
       </div>
 
       <h2 className="section">Security</h2>

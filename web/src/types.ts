@@ -46,6 +46,13 @@ export interface FlashbackGroup {
   entries: Entry[];
 }
 
+export interface ReminderSettings {
+  enabled: boolean;
+  time: string;
+  tz: string;
+  subscriptions: number;
+}
+
 export interface AiSettings {
   baseUrl: string;
   model: string;

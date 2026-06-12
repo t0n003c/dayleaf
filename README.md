@@ -30,6 +30,10 @@ no accounts, no tracking.
 - **"On this day" memories** — entries from 1/3/6 months and years ago
   resurface at the top of your journal.
 - **Daily prompts** — a rotating reflective prompt in the quick-jot bar.
+- **Daily reminder notifications** — an optional push notification at your
+  chosen time if you haven't journaled yet that day (toggle in Settings →
+  Reminders). Needs HTTPS; on iPhone, install to the Home Screen first
+  (iOS 16.4+).
 - **Timeline & search** — entries grouped by day, full-text search across everything.
 - **AI recall** — connect OpenAI, Claude, OpenRouter, Ollama, LM Studio, or any
   OpenAI-compatible API with your own key. Ask questions scoped to all tabs or
@@ -137,7 +141,6 @@ npm --prefix web run dev    # Vite dev server on :5173, proxies /api
 
 ## Roadmap ideas
 
-- Daily reminder notifications
 - Markdown-free rich touches (checklists, highlights)
 - Native mobile wrapper with real home-screen widgets
 - Multi-user support

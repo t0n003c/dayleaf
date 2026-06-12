@@ -14,6 +14,10 @@ import {
   verifyAuthentication, listCredentials, deleteCredential,
 } from './webauthn.js';
 import { streamAnswer, testConnection, aiConfig } from './ai.js';
+import {
+  ensureVapid, saveSubscription, removeSubscription, sendToAll,
+  reminderSettings, updateReminderSettings, startReminderLoop,
+} from './push.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
@@ -383,6 +387,45 @@ app.post('/api/ask', requireAuth, async (req, res) => {
   }
 });
 
+// ---------- daily reminder push notifications ----------
+
+app.get('/api/push/vapid-key', requireAuth, (_req, res) => {
+  res.json({ publicKey: ensureVapid() });
+});
+
+app.post('/api/push/subscribe', requireAuth, (req, res) => {
+  try {
+    saveSubscription(req.body?.subscription);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+app.post('/api/push/unsubscribe', requireAuth, (req, res) => {
+  if (req.body?.endpoint) removeSubscription(req.body.endpoint);
+  res.json({ ok: true });
+});
+
+app.get('/api/settings/reminder', requireAuth, (_req, res) => {
+  res.json(reminderSettings());
+});
+
+app.put('/api/settings/reminder', requireAuth, (req, res) => {
+  updateReminderSettings(req.body || {});
+  res.json(reminderSettings());
+});
+
+app.post('/api/push/test', requireAuth, async (_req, res) => {
+  const sent = await sendToAll({
+    title: 'Dayleaf 🍃',
+    body: 'Test notification — reminders are working!',
+    url: '/',
+  });
+  if (sent === 0) return res.status(400).json({ error: 'No active subscriptions on this server yet' });
+  res.json({ ok: true, sent });
+});
+
 // ---------- export ----------
 
 app.get('/api/export', requireAuth, (_req, res) => {
@@ -398,6 +441,8 @@ app.get('/api/export', requireAuth, (_req, res) => {
 const WEB_DIST = join(__dirname, '..', 'web', 'dist');
 app.use(express.static(WEB_DIST));
 app.get(/^\/(?!api\/).*/, (_req, res) => res.sendFile(join(WEB_DIST, 'index.html')));
+
+startReminderLoop();
 
 app.listen(PORT, () => {
   console.log(`Dayleaf listening on http://0.0.0.0:${PORT} (data in ${DATA_DIR})`);
