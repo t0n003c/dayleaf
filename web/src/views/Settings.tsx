@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { startRegistration } from '@simplewebauthn/browser';
 import QRCode from 'qrcode';
 import { api } from '../api';
@@ -59,6 +59,33 @@ export default function Settings({ me, tabs, refreshTabs, refreshMe, showToast }
 
   // Login activity
   const [activity, setActivity] = useState<{ attempts: any[] } | null>(null);
+
+  // Restore
+  const restoreRef = useRef<HTMLInputElement>(null);
+  const [restoreBusy, setRestoreBusy] = useState(false);
+
+  async function restore(file?: File) {
+    if (!file) return;
+    const ok = await appConfirm({
+      title: 'Restore from backup?',
+      message: 'This REPLACES all current entries, tabs, photos and settings with the contents of the backup, and signs you out. This cannot be undone.',
+      confirmLabel: 'Replace everything',
+      danger: true,
+    });
+    if (!ok) return;
+    setRestoreBusy(true);
+    try {
+      const form = new FormData();
+      form.set('backup', file);
+      const r = await api.form('POST', '/api/restore', form);
+      await appAlert('Restore complete', `Restored ${r.entries} entries and ${r.photos} photos. Please sign in again.`);
+      refreshMe(); // session was cleared server-side → back to login
+    } catch (err: any) {
+      appAlert('Restore failed', err.message || String(err));
+    } finally {
+      setRestoreBusy(false);
+    }
+  }
 
   // Daily reminder
   const [reminder, setReminder] = useState<ReminderSettings | null>(null);
@@ -605,11 +632,37 @@ export default function Settings({ me, tabs, refreshTabs, refreshMe, showToast }
       <div className="card">
         <div className="settings-row">
           <div className="grow">
-            <div className="title">Export journal</div>
-            <div className="sub">Download everything as JSON</div>
+            <div className="title">Full backup</div>
+            <div className="sub">Download everything — entries, tabs, settings & photos — in one restorable file</div>
+          </div>
+          <a className="btn small" href="/api/backup" download>Download</a>
+        </div>
+        <div className="settings-row">
+          <div className="grow">
+            <div className="title">Restore from backup</div>
+            <div className="sub">Replace all current data with a backup file</div>
+          </div>
+          <button className="btn small" onClick={() => restoreRef.current?.click()} disabled={restoreBusy}>
+            {restoreBusy ? 'Restoring…' : 'Restore'}
+          </button>
+          <input
+            ref={restoreRef}
+            type="file"
+            accept="application/json,.json"
+            hidden
+            onChange={(e) => { restore(e.target.files?.[0]); e.target.value = ''; }}
+          />
+        </div>
+        <div className="settings-row">
+          <div className="grow">
+            <div className="title">Export entries (text only)</div>
+            <div className="sub">A lightweight JSON of tabs & entries, no photos</div>
           </div>
           <a className="btn small" href="/api/export" download>Export</a>
         </div>
+        <p className="hint" style={{ marginBottom: 4 }}>
+          The backup file contains your journal and credentials — keep it somewhere safe.
+        </p>
       </div>
 
       <p className="hint" style={{ textAlign: 'center', margin: '22px 0 4px' }}>

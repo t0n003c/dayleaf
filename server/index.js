@@ -22,6 +22,8 @@ import {
 import { loginGate, recordAttempt, recentActivity, lockoutPolicy } from './security.js';
 import { optimizeUpload, thumbFile, thumbName, backfillThumbnails } from './images.js';
 import { shiftDate, targetsFor } from './memories.js';
+import { streamBackup, restoreBackup } from './backup.js';
+import pkg from '../package.json' with { type: 'json' };
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
@@ -556,6 +558,38 @@ app.get('/api/export', requireAuth, (_req, res) => {
     .map(entryWithAttachments);
   res.setHeader('Content-Disposition', `attachment; filename="dayleaf-export-${new Date().toISOString().slice(0, 10)}.json"`);
   res.json({ exportedAt: new Date().toISOString(), tabs, entries });
+});
+
+// ---------- full backup & restore (incl. photos) ----------
+
+app.get('/api/backup', requireAuth, (_req, res) => {
+  streamBackup(res, pkg.version);
+});
+
+// Restore uploads can be large (photos as base64) — accept via disk to bound
+// memory, with a generous size cap.
+const restoreUpload = multer({
+  storage: multer.diskStorage({
+    destination: DATA_DIR,
+    filename: (_req, _file, cb) => cb(null, `restore-${crypto.randomBytes(8).toString('hex')}.tmp`),
+  }),
+  limits: { fileSize: 1024 * 1024 * 1024 }, // 1 GB
+});
+
+app.post('/api/restore', requireAuth, restoreUpload.single('backup'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No backup file uploaded' });
+  try {
+    const buf = fsExtra.readFileSync(req.file.path);
+    const result = restoreBackup(buf);
+    // Photos were rewritten — regenerate any missing thumbnails in the background.
+    backfillThumbnails(result.restoredNames, UPLOAD_DIR).catch(() => {});
+    destroySession(req, res); // user row may have changed → force a fresh sign-in
+    res.json({ ok: true, tabs: result.tabs, entries: result.entries, photos: result.photos });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  } finally {
+    try { unlinkSync(req.file.path); } catch {}
+  }
 });
 
 // ---------- static frontend ----------

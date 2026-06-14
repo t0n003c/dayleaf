@@ -75,6 +75,35 @@ db.exec(`
   );
 `);
 
+// ---- schema migrations ----
+// The CREATE TABLE IF NOT EXISTS block above is the FROZEN v0 baseline. Any
+// future schema change (ALTER, new index, new table, data fix) goes here as an
+// ordered, append-only migration — NEVER edit the baseline or an existing
+// migration. Both fresh and existing databases run from their current
+// `user_version` up to MIGRATIONS.length, each in its own transaction, so an
+// upgrade can never half-apply or clash on an existing NAS database.
+const MIGRATIONS = [
+  // v1 — speed up attachment lookups (gallery + per-entry photo strips)
+  (d) => d.exec('CREATE INDEX IF NOT EXISTS idx_attachments_entry ON attachments(entry_id)'),
+];
+
+function migrate() {
+  const current = db.prepare('PRAGMA user_version').get().user_version;
+  for (let v = current; v < MIGRATIONS.length; v++) {
+    db.exec('BEGIN');
+    try {
+      MIGRATIONS[v](db);
+      db.exec(`PRAGMA user_version = ${v + 1}`); // v+1 is a controlled integer
+      db.exec('COMMIT');
+      console.log(`Applied DB migration ${v + 1}`);
+    } catch (e) {
+      db.exec('ROLLBACK');
+      throw new Error(`DB migration ${v + 1} failed: ${e.message}`);
+    }
+  }
+}
+migrate();
+
 const tabCount = db.prepare('SELECT COUNT(*) AS n FROM tabs').get();
 if (tabCount.n === 0) {
   const ins = db.prepare('INSERT INTO tabs (name, emoji, color, position) VALUES (?, ?, ?, ?)');

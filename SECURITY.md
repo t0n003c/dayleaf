@@ -57,6 +57,10 @@ Put **Cloudflare Access** (free tier, email OTP) in front of the tunnel. It
 makes the app unreachable to unauthenticated internet traffic, which is the
 single highest-leverage control for an exposed self-hosted app.
 
+## Backups
+
+The in-app **full backup** (`/api/backup`) is a single JSON file that includes your password hash, TOTP secret, and AI key so a restore is complete. Treat the backup file as sensitive — store it somewhere safe.
+
 ## Reporting
 
 This is a personal project; open a GitHub issue for security concerns.

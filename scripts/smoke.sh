@@ -39,6 +39,7 @@ check "ssrf blocked"    'private address' "$(curl -s -b $J -X PUT -H 'Content-Ty
 # reset AI config so later checks see the default (no key) state, not the SSRF test's
 curl -s -b $J -X PUT -H 'Content-Type: application/json' -d '{"baseUrl":"https://api.openai.com/v1","apiKey":""}' $B/api/settings/ai > /dev/null
 check "export"          '"exportedAt"' "$(curl -s -b $J $B/api/export)"
+check "full backup"     '"app":"dayleaf"' "$(curl -s -b $J $B/api/backup)"
 check "stats"           '"streak":1' "$(curl -s -b $J $B/api/stats)"
 check "on this day"     '[' "$(curl -s -b $J $B/api/onthisday)"
 check "set display name" '"name":"Sunny"' "$(curl -s -b $J -X PUT -H 'Content-Type: application/json' -d '{"name":"Sunny"}' $B/api/profile)"

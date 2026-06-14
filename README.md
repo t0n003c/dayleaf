@@ -63,8 +63,9 @@ no accounts, no tracking.
 - **Installable app (PWA)** — add to your phone's home screen and it behaves
   like a native app, including **app shortcuts**: long-press the icon for
   *New entry* or *Ask AI*.
-- **Your data is yours** — single SQLite database + photo folder in one volume;
-  one-click JSON export.
+- **Your data is yours** — single SQLite database + photo folder in one volume.
+  One-click **full backup** (entries, settings & photos in one restorable file)
+  and **restore**, plus a lightweight text-only JSON export.
 - **Alive with motion** — falling leaves and seasonal WebGL dappled light on
   the welcome screen, leaf-burst save celebrations, a finger-following
   drawer and dismissible composer sheet, and instant flash-free opens.
