@@ -27,10 +27,13 @@ services:
     #     # ^ only needed if biometric/passkey setup complains about a
     #     #   wrong origin and your proxy mangles X-Forwarded-Proto
     #
+    # AI:
+    #   - AI_ALLOW_PRIVATE=1        # allow the AI base URL to point at a LAN/local provider (Ollama)
+    #   - AI_MAX_CONTEXT_CHARS=200000  # how much journal text one Ask sends (raise for big-context models)
+    #
     # Security (see SECURITY.md):
     #   - TRUST_PROXY_HOPS=2   # proxy hops in front (Cloudflare + NPM = 2)
     #   - COOKIE_INSECURE=1    # ONLY for plain-HTTP LAN access (weakens sessions)
-    #   - AI_ALLOW_PRIVATE=1   # allow the AI base URL to point at a LAN/local provider (Ollama)
     #
     # Brute-force protection (defaults shown; rarely needs tuning):
     #   - MAX_LOGIN_ATTEMPTS=5      # failed tries per IP before cooldown
