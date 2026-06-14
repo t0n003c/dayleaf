@@ -2,7 +2,8 @@
 FROM node:26-alpine AS webbuild
 WORKDIR /app/web
 COPY web/package*.json ./
-RUN npm install --no-audit --no-fund
+# npm ci installs the lockfile exactly → reproducible builds, now and years out
+RUN npm ci --no-audit --no-fund
 COPY web/ ./
 RUN npm run build
 
@@ -14,7 +15,7 @@ ENV NODE_ENV=production \
     PORT=3000
 
 COPY package*.json ./
-RUN npm install --omit=dev --no-audit --no-fund
+RUN npm ci --omit=dev --no-audit --no-fund
 
 COPY server ./server
 COPY --from=webbuild /app/web/dist ./web/dist
