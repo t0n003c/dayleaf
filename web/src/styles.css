@@ -1852,3 +1852,50 @@ h2.section {
   display: block;
   vertical-align: middle;
 }
+
+/* ---------- Ask: mode toggle + recap ---------- */
+
+.ask-modes {
+  display: inline-flex;
+  gap: 2px;
+  background: var(--bg-sunken);
+  border-radius: 999px;
+  padding: 3px;
+  margin-bottom: 11px;
+}
+
+.ask-modes button {
+  border: none;
+  background: none;
+  border-radius: 999px;
+  padding: 5px 16px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.ask-modes button.active {
+  background: var(--bg-raised);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.recap-lenses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 10px;
+}
+
+.recap-go { width: 100%; }
+
+.qa-note {
+  margin-top: 10px;
+  font-size: 12.5px;
+  color: var(--text-dim);
+  background: var(--bg-sunken);
+  border-radius: 9px;
+  padding: 7px 11px;
+}

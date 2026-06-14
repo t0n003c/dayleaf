@@ -49,6 +49,7 @@ check "reminder set"    '"enabled":true' "$(curl -s -b $J -X PUT -H 'Content-Typ
 check "memories toggle" '"memories":true' "$(curl -s -b $J -X PUT -H 'Content-Type: application/json' -d '{"memories":true}' $B/api/settings/reminder)"
 check "push test (no subs)" 'No active subscriptions' "$(curl -s -b $J -X POST $B/api/push/test)"
 check "ask w/o key"     'No AI API key' "$(curl -s -b $J -H 'Content-Type: application/json' -d '{"question":"hi"}' $B/api/ask)"
+check "recap w/o key"   'No AI API key' "$(curl -s -b $J -H 'Content-Type: application/json' -d '{"lens":"recap"}' $B/api/recap)"
 check "totp setup"      'otpauth://totp' "$(curl -s -b $J -X POST $B/api/totp/setup)"
 check "wrong password"  'Wrong password' "$(curl -s -H 'Content-Type: application/json' -d '{"password":"nope"}' $B/api/login)"
 check "delete entry"    '"ok":true' "$(curl -s -b $J -X DELETE $B/api/entries/1)"

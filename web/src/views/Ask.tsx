@@ -9,6 +9,8 @@ interface QA {
   done: boolean;
   scopeLabel: string;
   rangeLabel: string;
+  progress?: string; // recap map-phase status, shown until the digest streams
+  note?: string;     // e.g. "answered from your N most recent entries"
 }
 
 const RANGES = [
@@ -17,6 +19,13 @@ const RANGES = [
   { id: 'quarter', label: 'Last 3 months', days: 92 },
   { id: 'year', label: 'Last year', days: 365 },
   { id: 'all', label: 'All time', days: 0 },
+];
+
+const LENSES = [
+  { id: 'recap', label: 'Recap', emoji: '🍂' },
+  { id: 'accomplishments', label: 'Accomplishments', emoji: '🏆' },
+  { id: 'interview', label: 'Interview prep', emoji: '💼' },
+  { id: 'mood', label: 'Wellbeing', emoji: '🌿' },
 ];
 
 const SUGGESTIONS = [
@@ -73,13 +82,16 @@ function Dropdown({
 }
 
 export default function Ask({ tabs }: { tabs: Tab[] }) {
+  const [mode, setMode] = useState<'ask' | 'recap'>('ask');
   const [question, setQuestion] = useState('');
   const [scope, setScope] = useState<number[]>([]); // empty = all tabs
   const [range, setRange] = useState('month');
+  const [lens, setLens] = useState('recap');
   const [openMenu, setOpenMenu] = useState<'tabs' | 'range' | null>(null);
   const [history, setHistory] = useState<QA[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const isMobile = useIsMobile();
 
   const scopeLabel =
     scope.length === 0
@@ -93,6 +105,11 @@ export default function Ask({ tabs }: { tabs: Tab[] }) {
     setScope((prev) => (prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]));
   }
 
+  function rangeFrom() {
+    const days = RANGES.find((r) => r.id === range)?.days ?? 30;
+    return days ? new Date(Date.now() - days * 86400_000).toLocaleDateString('sv') : undefined;
+  }
+
   async function ask(q?: string) {
     const text = (q ?? question).trim();
     if (!text || busy) return;
@@ -103,18 +120,22 @@ export default function Ask({ tabs }: { tabs: Tab[] }) {
     const idx = history.length;
     setHistory((h) => [...h, { question: text, answer: '', done: false, scopeLabel, rangeLabel }]);
 
-    const days = RANGES.find((r) => r.id === range)?.days ?? 30;
-    const from = days
-      ? new Date(Date.now() - days * 86400_000).toLocaleDateString('sv')
-      : undefined;
-
     try {
       await api.ask(
-        { question: text, tabIds: scope.length ? scope : null, from },
+        { question: text, tabIds: scope.length ? scope : null, from: rangeFrom() },
         (chunk) =>
-          setHistory((h) =>
-            h.map((qa, i) => (i === idx ? { ...qa, answer: qa.answer + chunk } : qa))
-          )
+          setHistory((h) => h.map((qa, i) => (i === idx ? { ...qa, answer: qa.answer + chunk } : qa))),
+        (meta) => {
+          if (meta.included < meta.total) {
+            setHistory((h) =>
+              h.map((qa, i) =>
+                i === idx
+                  ? { ...qa, note: `Based on your ${meta.included} most recent matching entries (of ${meta.total}). Narrow the date range, or use Recap for the whole period.` }
+                  : qa
+              )
+            );
+          }
+        }
       );
     } catch (err: any) {
       setError(err.message);
@@ -125,10 +146,44 @@ export default function Ask({ tabs }: { tabs: Tab[] }) {
     }
   }
 
-  const isMobile = useIsMobile();
+  async function runRecap() {
+    if (busy) return;
+    setError('');
+    setBusy(true);
+    setOpenMenu(null);
+    const lensLabel = LENSES.find((l) => l.id === lens)?.label ?? 'Recap';
+    const idx = history.length;
+    setHistory((h) => [...h, { question: `${lensLabel} · ${rangeLabel}`, answer: '', progress: 'Starting…', done: false, scopeLabel, rangeLabel }]);
 
-  const askCard = (
-      <div className="card ask-card">
+    try {
+      await api.recap(
+        { tabIds: scope.length ? scope : null, from: rangeFrom(), lens },
+        (p) =>
+          setHistory((h) =>
+            h.map((qa, i) => (i === idx ? { ...qa, progress: (qa.progress === 'Starting…' ? '' : qa.progress || '') + p } : qa))
+          ),
+        (chunk) =>
+          setHistory((h) =>
+            h.map((qa, i) => (i === idx ? { ...qa, progress: '', answer: qa.answer + chunk } : qa))
+          )
+      );
+    } catch (err: any) {
+      setError(err.message);
+      setHistory((h) => h.filter((_, i) => i !== idx));
+    } finally {
+      setBusy(false);
+      setHistory((h) => h.map((qa, i) => (i === idx ? { ...qa, done: true, progress: '' } : qa)));
+    }
+  }
+
+  const card = (
+    <div className="card ask-card">
+      <div className="ask-modes">
+        <button type="button" className={mode === 'ask' ? 'active' : ''} onClick={() => setMode('ask')}>Ask</button>
+        <button type="button" className={mode === 'recap' ? 'active' : ''} onClick={() => setMode('recap')}>Recap</button>
+      </div>
+
+      {mode === 'ask' ? (
         <div className="ask-input-wrap">
           <textarea
             className="ask-input"
@@ -140,82 +195,86 @@ export default function Ask({ tabs }: { tabs: Tab[] }) {
               if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(); }
             }}
           />
-          <button
-            type="button"
-            className="send-btn"
-            onClick={() => ask()}
-            disabled={busy || !question.trim()}
-            aria-label="Ask"
-          >
+          <button type="button" className="send-btn" onClick={() => ask()} disabled={busy || !question.trim()} aria-label="Ask">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
               <path d="M2.5 8h10M9 4.5L13.5 8 9 11.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
         </div>
+      ) : (
+        <>
+          <div className="recap-lenses">
+            {LENSES.map((l) => (
+              <button
+                key={l.id}
+                type="button"
+                className={`chip ${lens === l.id ? 'active' : ''}`}
+                onClick={() => setLens(l.id)}
+              >
+                {l.emoji} {l.label}
+              </button>
+            ))}
+          </div>
+          <button type="button" className="btn primary recap-go" onClick={runRecap} disabled={busy}>
+            ✨ Generate {LENSES.find((l) => l.id === lens)?.label.toLowerCase()}
+          </button>
+          <p className="hint" style={{ margin: '8px 2px 0' }}>
+            Reads every entry in the period (month by month for long spans), so a full year is covered.
+          </p>
+        </>
+      )}
 
-        <div className="ask-controls">
-          <span className="ask-controls-label">Searching</span>
+      <div className="ask-controls">
+        <span className="ask-controls-label">{mode === 'ask' ? 'Searching' : 'Covering'}</span>
 
-          <Dropdown
-            icon="🗂️"
-            summary={scopeLabel}
-            open={openMenu === 'tabs'}
-            onToggle={(o) => setOpenMenu(o ? 'tabs' : null)}
+        <Dropdown icon="🗂️" summary={scopeLabel} open={openMenu === 'tabs'} onToggle={(o) => setOpenMenu(o ? 'tabs' : null)}>
+          <button
+            type="button"
+            className={`menu-item ${scope.length === 0 ? 'selected' : ''}`}
+            onClick={() => { setScope([]); setOpenMenu(null); }}
           >
+            <span className="menu-emoji">🗂️</span> All tabs
+            {scope.length === 0 && <span className="check">✓</span>}
+          </button>
+          <div className="menu-divider" />
+          {tabs.map((t) => (
             <button
               type="button"
-              className={`menu-item ${scope.length === 0 ? 'selected' : ''}`}
-              onClick={() => { setScope([]); setOpenMenu(null); }}
+              key={t.id}
+              className={`menu-item ${scope.includes(t.id) ? 'selected' : ''}`}
+              onClick={() => toggleTab(t.id)}
             >
-              <span className="menu-emoji">🗂️</span> All tabs
-              {scope.length === 0 && <span className="check">✓</span>}
+              <span className="menu-emoji">{t.emoji}</span> {t.name}
+              {scope.includes(t.id) && <span className="check">✓</span>}
             </button>
-            <div className="menu-divider" />
-            {tabs.map((t) => (
-              <button
-                type="button"
-                key={t.id}
-                className={`menu-item ${scope.includes(t.id) ? 'selected' : ''}`}
-                onClick={() => toggleTab(t.id)}
-              >
-                <span className="menu-emoji">{t.emoji}</span> {t.name}
-                {scope.includes(t.id) && <span className="check">✓</span>}
-              </button>
-            ))}
-            <div className="menu-hint">Pick several to combine tabs</div>
-          </Dropdown>
+          ))}
+          <div className="menu-hint">Pick several to combine tabs</div>
+        </Dropdown>
 
-          <Dropdown
-            icon="🕐"
-            summary={rangeLabel}
-            open={openMenu === 'range'}
-            onToggle={(o) => setOpenMenu(o ? 'range' : null)}
-          >
-            {RANGES.map((r) => (
-              <button
-                type="button"
-                key={r.id}
-                className={`menu-item ${range === r.id ? 'selected' : ''}`}
-                onClick={() => { setRange(r.id); setOpenMenu(null); }}
-              >
-                {r.label}
-                {range === r.id && <span className="check">✓</span>}
-              </button>
-            ))}
-          </Dropdown>
-        </div>
-
-        {error && <p className="error-text">{error}</p>}
+        <Dropdown icon="🕐" summary={rangeLabel} open={openMenu === 'range'} onToggle={(o) => setOpenMenu(o ? 'range' : null)}>
+          {RANGES.map((r) => (
+            <button
+              type="button"
+              key={r.id}
+              className={`menu-item ${range === r.id ? 'selected' : ''}`}
+              onClick={() => { setRange(r.id); setOpenMenu(null); }}
+            >
+              {r.label}
+              {range === r.id && <span className="check">✓</span>}
+            </button>
+          ))}
+        </Dropdown>
       </div>
+
+      {error && <p className="error-text">{error}</p>}
+    </div>
   );
 
   return (
     <>
-      {/* Desktop: input card at the top. Mobile: docked at the bottom for
-          one-handed reach (menus open upward there via CSS). */}
-      {!isMobile && askCard}
+      {!isMobile && card}
 
-      {history.length === 0 && (
+      {history.length === 0 && mode === 'ask' && (
         <div className="suggestions">
           <p className="suggestions-title">Try asking</p>
           {SUGGESTIONS.map((s) => (
@@ -230,11 +289,18 @@ export default function Ask({ tabs }: { tabs: Tab[] }) {
         <article className="card qa-item" key={history.length - i}>
           <div className="qa-q">{qa.question}</div>
           <div className="qa-meta">{qa.scopeLabel} · {qa.rangeLabel}</div>
-          <div className={`qa-a ${qa.done ? '' : 'thinking'}`}>{qa.answer || (qa.done ? '' : ' ')}</div>
+          {!qa.answer && !qa.done && qa.progress !== undefined ? (
+            <div className="qa-a thinking" style={{ color: 'var(--text-dim)', whiteSpace: 'pre-wrap' }}>
+              {qa.progress || ' '}
+            </div>
+          ) : (
+            <div className={`qa-a ${qa.done ? '' : 'thinking'}`}>{qa.answer || (qa.done ? '' : ' ')}</div>
+          )}
+          {qa.note && <div className="qa-note">{qa.note}</div>}
         </article>
       ))}
 
-      {isMobile && <div className="ask-dock">{askCard}</div>}
+      {isMobile && <div className="ask-dock">{card}</div>}
     </>
   );
 }

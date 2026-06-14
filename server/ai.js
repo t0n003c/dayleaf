@@ -38,8 +38,10 @@ async function assertAllowed(baseUrl) {
   }
 }
 
-const MAX_CONTEXT_CHARS = 120_000;
-const MAX_ENTRIES = 400;
+// Roughly 4 chars/token; 200k chars ≈ ~50k tokens, comfortable for modern
+// large-context models (Claude 200k, GPT-4o 128k). Tune with AI_MAX_CONTEXT_CHARS.
+const MAX_CONTEXT_CHARS = Number(process.env.AI_MAX_CONTEXT_CHARS || 200_000);
+const MAX_ENTRIES = 800;
 
 export function aiConfig() {
   return {
@@ -83,40 +85,18 @@ Today is ${weekday}, ${today}. Answer questions about the user's life using ONLY
 
 JOURNAL ENTRIES (${included} of ${entries.length} matching):
 ${context || '(no entries in the selected scope)'}`;
-  return [
-    { role: 'system', content: system },
-    { role: 'user', content: question },
-  ];
+  return {
+    messages: [
+      { role: 'system', content: system },
+      { role: 'user', content: question },
+    ],
+    included,
+    total: entries.length,
+  };
 }
 
-export async function streamAnswer({ question, tabIds, from, to }, res) {
-  const { baseUrl, apiKey, model } = aiConfig();
-  if (!apiKey && baseUrl.includes('api.openai.com')) {
-    res.status(400).json({ error: 'No AI API key configured. Add one in Settings → AI.' });
-    return;
-  }
-  const messages = buildPrompt(question, { tabIds, from, to });
-
-  await assertAllowed(baseUrl);
-  const upstream = await fetch(`${baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
-    },
-    body: JSON.stringify({ model, messages, stream: true }),
-  });
-
-  if (!upstream.ok) {
-    const text = await upstream.text().catch(() => '');
-    res.status(502).json({ error: `AI provider error (${upstream.status}): ${text.slice(0, 500)}` });
-    return;
-  }
-
-  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('X-Accel-Buffering', 'no');
-
+// Parse an OpenAI-style SSE stream and write content deltas to res.
+async function pipeDeltas(upstream, res) {
   const decoder = new TextDecoder();
   let buffer = '';
   for await (const chunk of upstream.body) {
@@ -136,6 +116,190 @@ export async function streamAnswer({ question, tabIds, from, to }, res) {
       }
     }
   }
+}
+
+function chatBody(messages, extra = {}) {
+  const { model } = aiConfig();
+  return JSON.stringify({ model, messages, ...extra });
+}
+
+function authHeaders() {
+  const { apiKey } = aiConfig();
+  return { 'Content-Type': 'application/json', ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}) };
+}
+
+// One non-streaming completion → trimmed text. Used for the recap map phase.
+async function aiText(messages, maxTokens = 500) {
+  const { baseUrl } = aiConfig();
+  const r = await fetch(`${baseUrl}/chat/completions`, {
+    method: 'POST', headers: authHeaders(), body: chatBody(messages, { stream: false, max_tokens: maxTokens }),
+  });
+  if (!r.ok) {
+    const t = await r.text().catch(() => '');
+    throw new Error(`AI provider error (${r.status}): ${t.slice(0, 200)}`);
+  }
+  const raw = await r.text();
+  try {
+    return (JSON.parse(raw).choices?.[0]?.message?.content || '').trim();
+  } catch {
+    // Some providers stream even when stream:false — fold the SSE deltas in.
+    let out = '';
+    for (const line of raw.split('\n')) {
+      const t = line.trim();
+      if (!t.startsWith('data:')) continue;
+      const d = t.slice(5).trim();
+      if (d === '[DONE]') continue;
+      try {
+        const j = JSON.parse(d);
+        out += j.choices?.[0]?.delta?.content || j.choices?.[0]?.message?.content || '';
+      } catch {}
+    }
+    return out.trim();
+  }
+}
+
+async function mapLimit(items, limit, fn) {
+  const out = new Array(items.length);
+  let i = 0;
+  const worker = async () => { while (i < items.length) { const idx = i++; out[idx] = await fn(items[idx], idx); } };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return out;
+}
+
+export async function streamAnswer({ question, tabIds, from, to }, res) {
+  const { baseUrl, apiKey } = aiConfig();
+  if (!apiKey && baseUrl.includes('api.openai.com')) {
+    res.status(400).json({ error: 'No AI API key configured. Add one in Settings → AI.' });
+    return;
+  }
+  const { messages, included, total } = buildPrompt(question, { tabIds, from, to });
+
+  await assertAllowed(baseUrl);
+  const upstream = await fetch(`${baseUrl}/chat/completions`, {
+    method: 'POST', headers: authHeaders(), body: chatBody(messages, { stream: true }),
+  });
+
+  if (!upstream.ok) {
+    const text = await upstream.text().catch(() => '');
+    res.status(502).json({ error: `AI provider error (${upstream.status}): ${text.slice(0, 500)}` });
+    return;
+  }
+
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('X-Accel-Buffering', 'no');
+  // Tell the client how much of the matching journal actually fit in context,
+  // so it can warn when older entries were dropped.
+  res.setHeader('X-Dayleaf-Context', `${included}/${total}`);
+
+  await pipeDeltas(upstream, res);
+  res.end();
+}
+
+// ---------- Recap: map-reduce so a whole year fits regardless of context ----------
+
+function gatherRange({ tabIds, from, to }) {
+  let sql = `SELECT e.entry_date, e.content, e.mood, t.name AS tab_name
+             FROM entries e JOIN tabs t ON t.id = e.tab_id WHERE 1=1`;
+  const params = [];
+  if (Array.isArray(tabIds) && tabIds.length > 0) {
+    sql += ` AND e.tab_id IN (${tabIds.map(() => '?').join(',')})`;
+    params.push(...tabIds.map(Number));
+  }
+  if (from) { sql += ' AND e.entry_date >= ?'; params.push(from); }
+  if (to) { sql += ' AND e.entry_date <= ?'; params.push(to); }
+  sql += ' ORDER BY e.entry_date ASC, e.created_at ASC LIMIT 5000';
+  return db.prepare(sql).all(...params);
+}
+
+const LENSES = {
+  recap: {
+    label: 'recap',
+    instr: 'Write a warm, encouraging recap: the main themes, highlights, growth and challenges, and how things felt overall.',
+  },
+  accomplishments: {
+    label: 'list of accomplishments',
+    instr: 'Produce a prioritized list of concrete accomplishments, each with specifics and any measurable outcomes or numbers.',
+  },
+  interview: {
+    label: 'interview preparation',
+    instr: 'Produce interview-ready material: 4–6 STAR stories (Situation, Task, Action, Result) drawn from real events, then a short list of demonstrated skills and measurable impact.',
+  },
+  mood: {
+    label: 'wellbeing review',
+    instr: 'Summarize mood and wellbeing trends, what lifted or drained energy, patterns worth noticing, and gentle supportive observations.',
+  },
+};
+
+// Streams a recap. Progress lines first, then a \f separator, then the digest.
+export async function streamRecap({ tabIds, from, to, lens = 'recap' }, res) {
+  const { baseUrl, apiKey } = aiConfig();
+  if (!apiKey && baseUrl.includes('api.openai.com')) {
+    res.status(400).json({ error: 'No AI API key configured. Add one in Settings → AI.' });
+    return;
+  }
+  const lensDef = LENSES[lens] || LENSES.recap;
+  const entries = gatherRange({ tabIds, from, to });
+  if (entries.length === 0) {
+    res.status(400).json({ error: 'No entries in that period to recap yet.' });
+    return;
+  }
+  await assertAllowed(baseUrl);
+
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('X-Accel-Buffering', 'no');
+
+  const fmt = (e) => `[${e.entry_date}]${e.mood ? ` (mood: ${e.mood})` : ''}\n${e.content}`;
+  const totalChars = entries.reduce((n, e) => n + e.content.length, 0);
+
+  const buckets = new Map();
+  for (const e of entries) {
+    const k = e.entry_date.slice(0, 7); // YYYY-MM
+    if (!buckets.has(k)) buckets.set(k, []);
+    buckets.get(k).push(e);
+  }
+
+  let source;
+  if (totalChars <= MAX_CONTEXT_CHARS && buckets.size <= 2) {
+    // Short period: the raw entries fit — no map phase needed.
+    source = entries.map(fmt).join('\n\n');
+  } else {
+    // Map: summarize each month independently so any volume fits.
+    const months = [...buckets.keys()].sort();
+    res.write(`Reading ${entries.length} entries across ${months.length} months…\n`);
+    const summaries = await mapLimit(months, 4, async (k) => {
+      const label = new Date(`${k}-15T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      let text = buckets.get(k).map(fmt).join('\n\n');
+      if (text.length > MAX_CONTEXT_CHARS) text = text.slice(0, MAX_CONTEXT_CHARS);
+      const summary = await aiText([
+        { role: 'system', content: `Summarize one month (${label}) of the user's journal. Compact and factual: what they did, accomplishments with any numbers/outcomes, recurring themes, notable events, and overall mood. ~150 words. Use ONLY these entries.` },
+        { role: 'user', content: text },
+      ], 400);
+      res.write(`· ${label}\n`);
+      return `${label}\n${summary}`;
+    });
+    source = summaries.join('\n\n');
+  }
+
+  res.write('\f'); // separator: everything after this is the digest
+
+  const today = new Date().toISOString().slice(0, 10);
+  const period = from ? `${from} to ${to || today}` : 'all time';
+  const messages = [
+    { role: 'system', content: `You are crafting a ${lensDef.label} from the user's private journal, covering ${period}. ${lensDef.instr} Base it ONLY on the material provided — never invent events. Be warm, specific, and well-structured using short plain-text section headings (no markdown symbols like # or *). Today is ${today}.` },
+    { role: 'user', content: `Material:\n\n${source}` },
+  ];
+  const upstream = await fetch(`${baseUrl}/chat/completions`, {
+    method: 'POST', headers: authHeaders(), body: chatBody(messages, { stream: true }),
+  });
+  if (!upstream.ok) {
+    const t = await upstream.text().catch(() => '');
+    res.write(`\n[AI error ${upstream.status}: ${t.slice(0, 200)}]`);
+    res.end();
+    return;
+  }
+  await pipeDeltas(upstream, res);
   res.end();
 }
 

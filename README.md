@@ -45,8 +45,10 @@ no accounts, no tracking.
   (iOS 16.4+).
 - **Timeline & search** — entries grouped by day, full-text search across everything.
 - **AI recall** — connect OpenAI, Claude, OpenRouter, Ollama, LM Studio, or any
-  OpenAI-compatible API with your own key. Ask questions scoped to all tabs or
-  specific ones, over the last week / month / quarter / all time. Answers stream in live.
+  OpenAI-compatible API with your own key. **Ask** questions scoped to tabs and
+  a time range, or generate a **Recap** (year-in-review, accomplishments,
+  interview prep, or wellbeing) that summarizes month-by-month so a whole year
+  is covered. Answers stream in live.
 - **Security** — password on first launch, optional **authenticator-app 2FA**
   (Google Authenticator etc.) and optional **biometric unlock** (Face ID /
   fingerprint via passkeys; when enrolled, login is biometric-first and the

@@ -14,7 +14,7 @@ import {
   registrationOptions, verifyRegistration, authenticationOptions,
   verifyAuthentication, listCredentials, deleteCredential,
 } from './webauthn.js';
-import { streamAnswer, testConnection, aiConfig } from './ai.js';
+import { streamAnswer, streamRecap, testConnection, aiConfig } from './ai.js';
 import {
   ensureVapid, saveSubscription, removeSubscription, sendToAll,
   reminderSettings, updateReminderSettings, startReminderLoop,
@@ -495,6 +495,16 @@ app.post('/api/ask', requireAuth, async (req, res) => {
     await streamAnswer({ question: question.trim(), tabIds, from, to }, res);
   } catch (e) {
     if (!res.headersSent) res.status(502).json({ error: `AI request failed: ${e.message}` });
+    else res.end(`\n\n[error: ${e.message}]`);
+  }
+});
+
+app.post('/api/recap', requireAuth, async (req, res) => {
+  const { tabIds, from, to, lens } = req.body || {};
+  try {
+    await streamRecap({ tabIds, from, to, lens }, res);
+  } catch (e) {
+    if (!res.headersSent) res.status(502).json({ error: `Recap failed: ${e.message}` });
     else res.end(`\n\n[error: ${e.message}]`);
   }
 });
