@@ -97,7 +97,7 @@ export default function App() {
     // (the second translate is a % of the ghost's own size) so a finger never
     // covers it and it tracks where you're actually holding.
     const place = (px: number, py: number) => {
-      ghost.style.transform = `translate(${px}px, ${py}px) translate(-50%, -160%)`;
+      ghost.style.transform = `translate(${px}px, ${py}px) translate(-68%, -160%)`;
     };
     place(x, y);
 
