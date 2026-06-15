@@ -10,6 +10,14 @@ import { basename, extname, join } from 'node:path';
 const MAX_DIM = 2000;
 const THUMB_DIM = 480;
 
+// WebP encode settings. effort 5 = noticeably smaller files than the default 4
+// at the same quality (slower encode, fine for occasional uploads);
+// smartSubsample keeps edges/text crisp. q82 is a great quality/size sweet
+// spot for photos; thumbnails can go lower since they're only ever shown small.
+// sharp drops EXIF/metadata by default, so GPS/camera data is stripped too.
+const WEBP_FULL = { quality: 82, effort: 5, smartSubsample: true };
+const WEBP_THUMB = { quality: 70, effort: 5, smartSubsample: true };
+
 const MIME_EXT = {
   'image/jpeg': '.jpg', 'image/png': '.png', 'image/gif': '.gif',
   'image/webp': '.webp', 'image/heic': '.heic', 'image/avif': '.avif',
@@ -36,12 +44,12 @@ export async function optimizeUpload(srcPath, uploadDir, originalMime) {
     await sharp(srcPath, { animated: true, failOn: 'none' })
       .rotate()
       .resize({ width: MAX_DIM, height: MAX_DIM, fit: 'inside', withoutEnlargement: true })
-      .webp({ quality: 82 })
+      .webp(WEBP_FULL)
       .toFile(outPath);
     await sharp(srcPath, { failOn: 'none' })
       .rotate()
       .resize({ width: THUMB_DIM, height: THUMB_DIM, fit: 'inside', withoutEnlargement: true })
-      .webp({ quality: 72 })
+      .webp(WEBP_THUMB)
       .toFile(thumbFile(uploadDir, outName));
     unlinkSync(srcPath);
     return { filename: outName, mime: 'image/webp', size: statSync(outPath).size };
@@ -74,7 +82,7 @@ export async function backfillThumbnails(filenames, uploadDir) {
       await sharp(src, { failOn: 'none' })
         .rotate()
         .resize({ width: THUMB_DIM, height: THUMB_DIM, fit: 'inside', withoutEnlargement: true })
-        .webp({ quality: 72 })
+        .webp(WEBP_THUMB)
         .toFile(dest);
       made++;
     } catch {
