@@ -44,11 +44,13 @@ interface Props {
   activeTab: number | 'all';
   composeSignal: number;
   searchSignal?: number;
+  refreshSignal?: number;
+  onBeginDrag?: (entry: Entry, x: number, y: number) => void;
   showToast: (msg: string) => void;
   username?: string;
 }
 
-export default function Journal({ tabs, activeTab, composeSignal, searchSignal, showToast, username }: Props) {
+export default function Journal({ tabs, activeTab, composeSignal, searchSignal, refreshSignal, onBeginDrag, showToast, username }: Props) {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -73,6 +75,7 @@ export default function Journal({ tabs, activeTab, composeSignal, searchSignal, 
   }, [activeTab, search, today]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (refreshSignal) load(); }, [refreshSignal]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     api.get(`/api/onthisday?today=${today}`).then(setFlashbacks).catch(() => {});
   }, [today]);
@@ -265,6 +268,7 @@ export default function Journal({ tabs, activeTab, composeSignal, searchSignal, 
               tabs={tabs}
               showTab={activeTab === 'all'}
               onChanged={load}
+              onBeginDrag={onBeginDrag}
               stagger={Math.min(i, 8)}
             />
           ))}

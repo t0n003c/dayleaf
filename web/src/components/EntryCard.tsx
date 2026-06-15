@@ -9,9 +9,10 @@ interface Props {
   showTab: boolean;
   onChanged: () => void;
   stagger?: number;
+  onBeginDrag?: (entry: Entry, x: number, y: number) => void;
 }
 
-export default function EntryCard({ entry, tabs, showTab, onChanged, stagger }: Props) {
+export default function EntryCard({ entry, tabs, showTab, onChanged, stagger, onBeginDrag }: Props) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(entry.content);
   const [draftTab, setDraftTab] = useState(entry.tab_id);
@@ -20,6 +21,52 @@ export default function EntryCard({ entry, tabs, showTab, onChanged, stagger }: 
   const fileRef = useRef<HTMLInputElement>(null);
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // One pointer gesture decides: quick tap → edit, vertical move → (native)
+  // scroll, press-and-hold → start a drag-to-move. touch-action:pan-y on the
+  // card lets the timeline scroll, which fires pointercancel and aborts the
+  // hold — so scrolling never starts a drag.
+  const pressTimer = useRef(0);
+  const start = useRef({ x: 0, y: 0 });
+  const dragStarted = useRef(false);
+  const HOLD_MS = 400;
+  const MOVE_TOL = 10;
+
+  function interactive(target: EventTarget | null) {
+    return !!(target as HTMLElement)?.closest?.('button, a, img, input, textarea, select');
+  }
+
+  function clearHold() {
+    if (pressTimer.current) { clearTimeout(pressTimer.current); pressTimer.current = 0; }
+  }
+
+  function onPointerDown(e: React.PointerEvent) {
+    if (editing || e.button === 2 || interactive(e.target)) return;
+    start.current = { x: e.clientX, y: e.clientY };
+    dragStarted.current = false;
+    if (!onBeginDrag) return;
+    pressTimer.current = window.setTimeout(() => {
+      pressTimer.current = 0;
+      dragStarted.current = true;
+      onBeginDrag(entry, start.current.x, start.current.y);
+    }, HOLD_MS);
+  }
+
+  function onPointerMove(e: React.PointerEvent) {
+    if (!pressTimer.current) return;
+    if (Math.abs(e.clientX - start.current.x) > MOVE_TOL || Math.abs(e.clientY - start.current.y) > MOVE_TOL) {
+      clearHold(); // it's a scroll/scrub, not a hold
+    }
+  }
+
+  function onPointerUp(e: React.PointerEvent) {
+    clearHold();
+    if (dragStarted.current) { dragStarted.current = false; return; } // the drag handled it
+    if (editing || interactive(e.target)) return;
+    if (Math.abs(e.clientX - start.current.x) <= MOVE_TOL && Math.abs(e.clientY - start.current.y) <= MOVE_TOL) {
+      setEditing(true); // a tap → edit
+    }
+  }
 
   const time = new Date(`${entry.created_at.replace(' ', 'T')}Z`).toLocaleTimeString(undefined, {
     hour: 'numeric', minute: '2-digit',
@@ -74,7 +121,15 @@ export default function EntryCard({ entry, tabs, showTab, onChanged, stagger }: 
   }
 
   return (
-    <article className="card entry-card" style={{ ['--stagger' as any]: stagger ?? 0 }}>
+    <article
+      className={`card entry-card ${editing ? 'editing' : 'tappable'}`}
+      style={{ ['--stagger' as any]: stagger ?? 0 }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={clearHold}
+      title={editing ? undefined : 'Tap to edit · press and hold to move to another journal'}
+    >
       <div className="entry-head">
         {showTab && (
           <span className="tab-pill" style={{ color: entry.tab_color }}>
@@ -94,10 +149,9 @@ export default function EntryCard({ entry, tabs, showTab, onChanged, stagger }: 
             </button>
           </div>
         ) : (
-          <div className="entry-actions">
-            <button className="btn ghost small" onClick={() => setEditing(true)}>Edit</button>
-            <button className="btn ghost small" onClick={remove}>Delete</button>
-          </div>
+          <button className="entry-delete" title="Delete entry" onClick={remove} aria-label="Delete entry">
+            ✕
+          </button>
         )}
       </div>
 

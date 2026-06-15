@@ -138,7 +138,13 @@ export default function Sidebar({
               >
                 ⠿
               </button>
-              <button className="side-main" onClick={() => onSelect(t.id)} title={t.name}>
+              <button
+                className="side-main"
+                onClick={() => onSelect(t.id)}
+                title={t.name}
+                data-droptab={t.id}
+                data-droptabname={t.name}
+              >
                 <span className="side-emoji">{t.emoji}</span>
                 <span className="side-name">{t.name}</span>
                 <span className="side-count">{t.entry_count ?? 0}</span>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from './api';
-import type { Me, Tab } from './types';
+import type { Entry, Me, Tab } from './types';
 import Setup from './views/Setup';
 import Login from './views/Login';
 import Journal from './views/Journal';
@@ -37,9 +37,12 @@ export default function App() {
   const [editingTab, setEditingTab] = useState<Tab | 'new' | null>(null);
   const [composeSignal, setComposeSignal] = useState(0);
   const [searchSignal, setSearchSignal] = useState(0);
+  const [journalRefresh, setJournalRefresh] = useState(0);
   const [toast, setToast] = useState('');
   const sidebarOpenRef = useRef(false);
   sidebarOpenRef.current = sidebarOpen;
+  const sidebarCollapsedRef = useRef(sidebarCollapsed);
+  sidebarCollapsedRef.current = sidebarCollapsed;
   const meRef = useRef<Me | null>(null);
   meRef.current = me;
 
@@ -61,6 +64,74 @@ export default function App() {
     );
     api.put('/api/tabs/reorder', { ids }).catch(() => refreshTabs());
   }, [refreshTabs]);
+
+  const moveEntryToTab = useCallback(async (entryId: number, tabId: number, tabName: string) => {
+    const form = new FormData();
+    form.set('tab_id', String(tabId));
+    try {
+      await api.form('PUT', `/api/entries/${entryId}`, form);
+      setJournalRefresh((n) => n + 1);
+      refreshTabs();
+      showToast(`Moved to ${tabName} 🍃`);
+    } catch (err: any) {
+      appAlert('Could not move entry', err.message);
+    }
+  }, [refreshTabs, showToast]);
+
+  // Press-and-hold drag of an entry onto a sidebar journal. Pointer-based so it
+  // works for mouse and touch; a floating ghost follows the pointer, sidebar
+  // tabs (data-droptab) are the drop targets, and nearing the left edge opens
+  // a closed/collapsed sidebar so you can always reach them.
+  const beginEntryDrag = useCallback((entry: Entry, x: number, y: number) => {
+    const mobile = window.matchMedia('(max-width: 699px)').matches;
+    if (mobile) setSidebarOpen(true);
+    else if (sidebarCollapsedRef.current) setSidebarCollapsed(false);
+    try { navigator.vibrate?.(20); } catch {}
+
+    document.body.classList.add('dragging-entry');
+    const ghost = document.createElement('div');
+    ghost.className = 'entry-drag-ghost';
+    ghost.textContent = `${entry.tab_emoji} ${(entry.content || 'entry').slice(0, 38)}`;
+    document.body.appendChild(ghost);
+    const place = (px: number, py: number) => { ghost.style.transform = `translate(${px + 12}px, ${py + 12}px)`; };
+    place(x, y);
+
+    let over: { id: number; name: string } | null = null;
+    const clearHighlight = () =>
+      document.querySelectorAll('.side-tab.drop-hover').forEach((n) => n.classList.remove('drop-hover'));
+
+    const onMove = (e: PointerEvent) => {
+      e.preventDefault();
+      place(e.clientX, e.clientY);
+      if (e.clientX < 26) {
+        if (mobile) setSidebarOpen(true);
+        else if (sidebarCollapsedRef.current) setSidebarCollapsed(false);
+      }
+      const hit = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-droptab]') as HTMLElement | null;
+      clearHighlight();
+      over = null;
+      if (hit) {
+        const id = Number(hit.dataset.droptab);
+        if (id !== entry.tab_id) {
+          hit.closest('.side-tab')?.classList.add('drop-hover');
+          over = { id, name: hit.dataset.droptabname || 'journal' };
+        }
+      }
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      clearHighlight();
+      ghost.remove();
+      document.body.classList.remove('dragging-entry');
+      if (mobile) setSidebarOpen(false);
+      if (over) moveEntryToTab(entry.id, over.id, over.name);
+    };
+    window.addEventListener('pointermove', onMove, { passive: false });
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  }, [moveEntryToTab]);
 
   const deleteTab = useCallback(async (t: Tab) => {
     const ok = await appConfirm({
@@ -288,6 +359,8 @@ export default function App() {
                 activeTab={activeTab}
                 composeSignal={composeSignal}
                 searchSignal={searchSignal}
+                refreshSignal={journalRefresh}
+                onBeginDrag={beginEntryDrag}
                 showToast={showToast}
                 username={me.username}
               />
