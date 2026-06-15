@@ -93,7 +93,12 @@ export default function App() {
     ghost.className = 'entry-drag-ghost';
     ghost.textContent = `${entry.tab_emoji} ${(entry.content || 'entry').slice(0, 38)}`;
     document.body.appendChild(ghost);
-    const place = (px: number, py: number) => { ghost.style.transform = `translate(${px + 12}px, ${py + 12}px)`; };
+    // Center the ghost on the pointer and float it just above the fingertip
+    // (the second translate is a % of the ghost's own size) so a finger never
+    // covers it and it tracks where you're actually holding.
+    const place = (px: number, py: number) => {
+      ghost.style.transform = `translate(${px}px, ${py}px) translate(-50%, -160%)`;
+    };
     place(x, y);
 
     let over: { id: number; name: string } | null = null;
