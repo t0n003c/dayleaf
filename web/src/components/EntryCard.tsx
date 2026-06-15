@@ -14,6 +14,7 @@ interface Props {
 export default function EntryCard({ entry, tabs, showTab, onChanged, stagger }: Props) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(entry.content);
+  const [draftTab, setDraftTab] = useState(entry.tab_id);
   const [newPhotos, setNewPhotos] = useState<File[]>([]);
   const cameraRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -37,6 +38,7 @@ export default function EntryCard({ entry, tabs, showTab, onChanged, stagger }: 
     try {
       const form = new FormData();
       form.set('content', draft);
+      form.set('tab_id', String(draftTab));
       for (const p of newPhotos) form.append('photos', p);
       await api.form('PUT', `/api/entries/${entry.id}`, form);
       setEditing(false);
@@ -84,7 +86,7 @@ export default function EntryCard({ entry, tabs, showTab, onChanged, stagger }: 
         <span className="spacer" />
         {editing ? (
           <div className="entry-actions" style={{ opacity: 1 }}>
-            <button className="btn ghost small" onClick={() => { setEditing(false); setDraft(entry.content); setNewPhotos([]); }}>
+            <button className="btn ghost small" onClick={() => { setEditing(false); setDraft(entry.content); setDraftTab(entry.tab_id); setNewPhotos([]); }}>
               Cancel
             </button>
             <button className="btn primary small" onClick={saveEdit} disabled={busy}>
@@ -100,13 +102,29 @@ export default function EntryCard({ entry, tabs, showTab, onChanged, stagger }: 
       </div>
 
       {editing ? (
-        <textarea
-          className="input"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          rows={Math.max(3, draft.split('\n').length)}
-          autoFocus
-        />
+        <>
+          <textarea
+            className="input"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            rows={Math.max(3, draft.split('\n').length)}
+            autoFocus
+          />
+          {tabs.length > 1 && (
+            <label className="entry-move">
+              <span>Journal</span>
+              <select
+                className="date-input tab-select"
+                value={draftTab}
+                onChange={(e) => setDraftTab(Number(e.target.value))}
+              >
+                {tabs.map((t) => (
+                  <option key={t.id} value={t.id}>{t.emoji} {t.name}</option>
+                ))}
+              </select>
+            </label>
+          )}
+        </>
       ) : (
         <div className="entry-content">{entry.content}</div>
       )}
