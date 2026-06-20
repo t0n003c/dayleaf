@@ -35,6 +35,10 @@ services:
     #   - TRUST_PROXY_HOPS=2   # proxy hops in front (Cloudflare + NPM = 2)
     #   - COOKIE_INSECURE=1    # ONLY for plain-HTTP LAN access (weakens sessions)
     #
+    # Cloudflare Turnstile bot challenge on the login form (set BOTH to enable):
+    #   - TURNSTILE_SITE_KEY=0x4AAA...    # public widget key (from the Turnstile dashboard)
+    #   - TURNSTILE_SECRET=0x4AAA...      # secret key — keep private
+    #
     # Brute-force protection (defaults shown; rarely needs tuning):
     #   - MAX_LOGIN_ATTEMPTS=5      # failed tries per IP before cooldown
     #   - MAX_GLOBAL_ATTEMPTS=15    # failed tries from anywhere before cooldown

@@ -599,6 +599,20 @@ export default function Settings({ me, tabs, refreshTabs, refreshMe, showToast }
           </div>
           <button className="btn danger small" onClick={logoutEverywhere}>Sign out everywhere</button>
         </div>
+
+        <div className="settings-row">
+          <div className="grow">
+            <div className="title">Bot challenge (Turnstile)</div>
+            <div className="sub">
+              {me.turnstileSiteKey
+                ? 'Cloudflare Turnstile is guarding the login form'
+                : 'Set TURNSTILE_SITE_KEY and TURNSTILE_SECRET on the container to enable'}
+            </div>
+          </div>
+          <span className={`status-pill ${me.turnstileSiteKey ? 'on' : 'off'}`}>
+            {me.turnstileSiteKey ? 'On' : 'Off'}
+          </span>
+        </div>
       </div>
 
       {activity && activity.attempts.length > 0 && (

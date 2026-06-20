@@ -4,6 +4,7 @@ export interface Me {
   username?: string;
   totpEnabled?: boolean;
   hasPasskeys?: boolean;
+  turnstileSiteKey?: string; // present only when Cloudflare Turnstile is configured
 }
 
 export interface Tab {

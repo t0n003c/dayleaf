@@ -3,6 +3,7 @@ import { startAuthentication } from '@simplewebauthn/browser';
 import { api } from '../api';
 import LeafLight from '../components/LeafLight';
 import LeafRain from '../components/LeafRain';
+import Turnstile from '../components/Turnstile';
 import type { Me } from '../types';
 
 // When passkeys are enrolled, login is biometric-first: the prompt fires
@@ -20,6 +21,12 @@ export default function Login({ me, onDone }: { me: Me; onDone: () => void }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const autoTried = useRef(false);
+  // Bot challenge — only when the server configured Turnstile. Tokens are
+  // single-use, so we remount the widget (bump turnstileKey) after every
+  // attempt to mint a fresh one.
+  const turnstileRequired = !!me.turnstileSiteKey;
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const [turnstileKey, setTurnstileKey] = useState(0);
 
   async function biometric() {
     setBioTrying(true);
@@ -53,11 +60,18 @@ export default function Login({ me, onDone }: { me: Me; onDone: () => void }) {
     setError('');
     setBusy(true);
     try {
-      await api.post('/api/login', { password, totp: totp || undefined });
+      await api.post('/api/login', {
+        password,
+        totp: totp || undefined,
+        turnstileToken: turnstileToken || undefined,
+      });
       onDone();
     } catch (err: any) {
       if (err.body?.totpRequired) setTotpRequired(true);
       setError(err.body?.error || (err.body?.totpRequired ? '' : err.message));
+      // Single-use token spent — get a fresh widget for the next attempt
+      // (the 2FA step counts as a separate attempt).
+      if (turnstileRequired) { setTurnstileToken(''); setTurnstileKey((k) => k + 1); }
     } finally {
       setBusy(false);
     }
@@ -126,8 +140,16 @@ export default function Login({ me, onDone }: { me: Me; onDone: () => void }) {
                 />
               </label>
             )}
+            {turnstileRequired && (
+              <Turnstile
+                key={turnstileKey}
+                siteKey={me.turnstileSiteKey!}
+                onToken={setTurnstileToken}
+                onError={() => setError('Human verification failed to load — refresh and try again.')}
+              />
+            )}
             {error && <p className="error-text">{error}</p>}
-            <button className="btn primary" disabled={busy}>Unlock</button>
+            <button className="btn primary" disabled={busy || (turnstileRequired && !turnstileToken)}>Unlock</button>
             {me.hasPasskeys && (
               <button
                 type="button"

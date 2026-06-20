@@ -19,7 +19,8 @@ import {
   ensureVapid, saveSubscription, removeSubscription, sendToAll,
   reminderSettings, updateReminderSettings, startReminderLoop,
 } from './push.js';
-import { loginGate, recordAttempt, recentActivity, lockoutPolicy } from './security.js';
+import { loginGate, recordAttempt, recentActivity, lockoutPolicy, clientIp } from './security.js';
+import { turnstileEnabled, turnstileSiteKey, verifyTurnstile } from './turnstile.js';
 import { optimizeUpload, thumbFile, thumbName, backfillThumbnails } from './images.js';
 import { shiftDate, targetsFor } from './memories.js';
 import { streamBackup, restoreBackup } from './backup.js';
@@ -35,19 +36,27 @@ const app = express();
 app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS || 2));
 app.disable('x-powered-by');
 
+// The two hashes whitelist exactly the inline scripts in index.html: the
+// pre-paint theme setter and the service-worker registration. If either script
+// changes, its hash changes and the browser blocks it — the smoke journey
+// asserts there are no CSP violations, so drift is caught in CI.
+//
+// When Turnstile is enabled, the login widget loads a script + iframe from
+// challenges.cloudflare.com and fetches the challenge from there, so that origin
+// is whitelisted in script/connect/frame; otherwise the policy stays as tight
+// as before.
+const TS_ORIGIN = turnstileEnabled() ? ' https://challenges.cloudflare.com' : '';
+const CSP =
+  "default-src 'self'; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; " +
+  "script-src 'self' 'sha256-CH0jmaqZqesdpFdNeh9iAh/jt14dy6BmtkFyLZlvHFk=' " +
+  "'sha256-xgtzMOFRePiwe4kFSwITE+9gUw0JyS0j8qvYarVJChA='" + TS_ORIGIN + "; " +
+  "connect-src 'self'" + TS_ORIGIN + "; frame-src 'self'" + TS_ORIGIN + "; " +
+  "frame-ancestors 'none'; base-uri 'none'; object-src 'none'; form-action 'self'";
+
 // Security headers on every response.
 app.use((_req, res, next) => {
   res.set({
-    // The two hashes whitelist exactly the inline scripts in index.html: the
-    // pre-paint theme setter and the service-worker registration. If either
-    // script changes, its hash changes and the browser blocks it — the smoke
-    // journey asserts there are no CSP violations, so drift is caught in CI.
-    'Content-Security-Policy':
-      "default-src 'self'; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; " +
-      "script-src 'self' 'sha256-CH0jmaqZqesdpFdNeh9iAh/jt14dy6BmtkFyLZlvHFk=' " +
-      "'sha256-xgtzMOFRePiwe4kFSwITE+9gUw0JyS0j8qvYarVJChA='; " +
-      "connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; " +
-      "object-src 'none'; form-action 'self'",
+    'Content-Security-Policy': CSP,
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
     'Referrer-Policy': 'no-referrer',
@@ -128,6 +137,9 @@ app.get('/api/me', (req, res) => {
     username: session ? getSetting('display_name') || session.username : undefined,
     totpEnabled: !!user.totp_enabled,
     hasPasskeys: listCredentials().length > 0,
+    // Public site key so the login form can render the bot challenge; omitted
+    // (and the whole gate disabled) when Turnstile isn't configured.
+    turnstileSiteKey: turnstileEnabled() ? turnstileSiteKey() : undefined,
   });
 });
 
@@ -153,6 +165,12 @@ app.post('/api/setup', (req, res) => {
 app.post('/api/login', async (req, res) => {
   const gate = loginGate(req);
   if (gate.blocked) return rejectLocked(res, gate);
+  // Bot challenge before we even look at credentials. A failed/missing token is
+  // not a password guess, so it does NOT count toward the brute-force lockout —
+  // a flaky captcha must never lock the owner out of their own journal.
+  if (turnstileEnabled() && !(await verifyTurnstile(req.body?.turnstileToken, clientIp(req)))) {
+    return res.status(403).json({ error: 'Human verification failed — please try again', turnstile: true });
+  }
   const user = getUser();
   if (!user) return res.status(400).json({ error: 'Not set up yet' });
   const { password, totp } = req.body || {};

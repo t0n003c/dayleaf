@@ -732,6 +732,9 @@ h2.section {
   50% { transform: scale(1.12); opacity: 0.65; }
 }
 
+/* Cloudflare Turnstile widget on the login form (fixed 300×65 iframe) */
+.turnstile { display: flex; justify-content: center; margin: 4px 0 12px; min-height: 65px; }
+
 /* ---------- tab chips ---------- */
 
 .tab-row {
@@ -814,6 +817,17 @@ h2.section {
 }
 
 [data-theme='dark'] .stat-pill { color: var(--accent); }
+
+.status-pill {
+  border-radius: 999px;
+  padding: 2.5px 12px;
+  font-weight: 700;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.status-pill.on { background: var(--accent-soft); color: var(--accent-strong); }
+[data-theme='dark'] .status-pill.on { color: var(--accent); }
+.status-pill.off { background: var(--bg-sunken); color: var(--text-dim); }
 
 /* ---------- composer ---------- */
 

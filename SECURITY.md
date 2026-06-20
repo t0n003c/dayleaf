@@ -12,6 +12,11 @@ exposed to the internet (e.g. via a Cloudflare Tunnel + reverse proxy).
   passkey failures excluded (not guessable); login-activity log; optional
   push alert on lockout. Client IP is taken from the trusted proxy chain only —
   spoofed `X-Forwarded-For` from a direct caller can't bypass the lockout.
+- **Bot challenge (optional):** when `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET`
+  are set, the password login form requires a Cloudflare Turnstile token,
+  verified server-side before credentials are checked. A failed/missing token is
+  rejected but does NOT count toward the lockout (so a flaky captcha can't lock
+  the owner out). Passkey login is unaffected.
 - **Sessions:** rotated on login; **all other sessions are revoked on password
   change**; "sign out everywhere" available in Settings.
 - **HTTP headers:** Content-Security-Policy (no inline scripts except two
@@ -39,6 +44,7 @@ exposed to the internet (e.g. via a Cloudflare Tunnel + reverse proxy).
 | `TRUST_PROXY_HOPS` | `2` | Number of trusted proxy hops (Cloudflare + NPM = 2). |
 | `COOKIE_INSECURE` | unset | Set to `1` ONLY for pure plain-HTTP LAN access, where a `Secure` cookie can't be stored. Weakens session protection. |
 | `AI_ALLOW_PRIVATE` | unset | Set to `1` to allow the AI base URL to point at a private/LAN address (needed for local Ollama / LM Studio). |
+| `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET` | unset | Set BOTH to enable a Cloudflare Turnstile bot challenge on the password login. Site key is public; keep the secret private. |
 | `MAX_LOGIN_ATTEMPTS` / `MAX_GLOBAL_ATTEMPTS` / `LOGIN_WINDOW_MINUTES` / `LOCKOUT_MINUTES` | `5` / `15` / `15` / `15` | Brute-force lockout tuning. |
 
 ## Accepted risks (documented, not bugs)
