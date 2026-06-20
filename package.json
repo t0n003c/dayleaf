@@ -1,6 +1,6 @@
 {
   "name": "dayleaf",
-  "version": "1.4.1",
+  "version": "1.8.0",
   "description": "Dayleaf — a self-hosted daily journal with tabs, photos, and AI recall.",
   "type": "module",
   "private": true,

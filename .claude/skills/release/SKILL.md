@@ -31,7 +31,7 @@ Pushing to `main` IS the release: `.github/workflows/docker.yml` builds and push
 
 ## Versioned releases (the normal flow — the user likes each batch tagged)
 
-Current series is **v1.4.x**. Bump both `package.json` and `web/package.json` to the new version (the Settings footer shows it), then:
+Find the true latest with `git tag -l 'v*' | sort -V | tail -1` — **`package.json` has historically drifted behind the tags, so trust the tags, not `package.json`** (the series reached v1.8.x while `package.json` still read 1.4.1). Bump both `package.json` and `web/package.json` to the new version (the Settings footer shows it), then:
 
 ```bash
 git tag vX.Y.Z && git push origin main vX.Y.Z
