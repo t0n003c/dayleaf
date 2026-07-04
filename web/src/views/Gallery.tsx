@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import CountUp from '../components/CountUp';
 import { appConfirm } from '../components/dialog';
+import EntryText from '../components/EntryText';
 import TabIcon from '../components/TabIcon';
 import type { GalleryItem } from '../types';
 
@@ -303,7 +304,7 @@ export default function Gallery() {
                 <span className="viewer-count">{selected! + 1} / {items.length}</span>
               </div>
               <div className="viewer-date">{dayLabel(cur.entry_date)}</div>
-              {cur.snippet && <p className="viewer-snippet">{cur.snippet}</p>}
+              {cur.snippet && <p className="viewer-snippet"><EntryText text={cur.snippet} /></p>}
               <div className="viewer-file hint">
                 {fmtSize(cur.size)} · {cur.mime.replace('image/', '').toUpperCase()}
               </div>

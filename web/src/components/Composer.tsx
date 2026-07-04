@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import type { Tab } from '../types';
+import EmojiInsertPicker from './EmojiInsertPicker';
+import { emojiToken } from './EntryText';
 import { tabIconText } from './TabIcon';
 
 const MOODS = ['😄', '🙂', '😐', '😕', '😣'];
@@ -45,6 +47,27 @@ export default function Composer({ tabs, defaultTab, onSaved, onClose, placehold
     // updater, a lazily-read FileList would already be empty.
     const picked = Array.from(list);
     setPhotos((prev) => [...prev, ...picked].slice(0, 6));
+  }
+
+  function insertEmoji(name: string) {
+    const token = emojiToken(name);
+    const el = textRef.current;
+    if (!el) {
+      setContent((prev) => `${prev}${prev && !prev.endsWith(' ') ? ' ' : ''}${token} `);
+      return;
+    }
+    const start = el.selectionStart ?? content.length;
+    const end = el.selectionEnd ?? content.length;
+    const before = content.slice(0, start);
+    const after = content.slice(end);
+    const insert = `${before && !/\s$/.test(before) ? ' ' : ''}${token}${after && !/^\s/.test(after) ? ' ' : ''}`;
+    const next = `${before}${insert}${after}`;
+    setContent(next);
+    window.requestAnimationFrame(() => {
+      el.focus();
+      const pos = before.length + insert.length;
+      el.setSelectionRange(pos, pos);
+    });
   }
 
   async function save() {
@@ -121,6 +144,7 @@ export default function Composer({ tabs, defaultTab, onSaved, onClose, placehold
             ))}
           </div>
           <div className="photo-btns">
+            <EmojiInsertPicker onPick={insertEmoji} />
             <button className="icon-btn" title="Take a photo" onClick={() => cameraRef.current?.click()}>
               📷
             </button>

@@ -7,6 +7,7 @@ import { leafBurst, milestoneMoment } from '../components/celebrate';
 import { MILESTONES } from '../components/StreakRing';
 import CountUp from '../components/CountUp';
 import EntryCard from '../components/EntryCard';
+import EntryText from '../components/EntryText';
 import StreakRing from '../components/StreakRing';
 import TabIcon from '../components/TabIcon';
 
@@ -242,7 +243,7 @@ export default function Journal({ tabs, activeTab, composeSignal, searchSignal, 
                   <span><TabIcon emoji={e.tab_emoji} className="inline-tab-icon" /> {e.tab_name}</span>
                   {e.mood && <span>{e.mood}</span>}
                 </div>
-                <div className="flash-content">{e.content}</div>
+                <div className="flash-content"><EntryText text={e.content} /></div>
               </div>
             ))
           )}

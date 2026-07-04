@@ -1055,6 +1055,30 @@ h2.section {
 
 .composer-tools .photo-btns { display: flex; gap: 6px; }
 
+.emoji-insert {
+  position: relative;
+}
+
+.emoji-insert-popover {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  width: min(320px, calc(100vw - 28px));
+  max-width: 320px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg-raised);
+  box-shadow: var(--shadow-menu);
+  z-index: 80;
+}
+
+.custom-emoji-grid.compact {
+  max-height: 188px;
+  grid-template-columns: repeat(6, 40px);
+  justify-content: center;
+}
+
 .composer-actions {
   display: flex;
   align-items: center;
@@ -1213,6 +1237,21 @@ h2.section {
   white-space: pre-wrap;
   overflow-wrap: break-word;
   font-size: 15.5px;
+}
+
+.entry-edit-tools {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.entry-inline-emoji {
+  width: 1.45em;
+  height: 1.45em;
+  object-fit: contain;
+  vertical-align: -0.34em;
+  margin: 0 0.04em;
+  border-radius: 5px;
 }
 
 .entry-photos { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }

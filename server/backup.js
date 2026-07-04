@@ -11,6 +11,12 @@ import { db, DATA_DIR } from './db.js';
 const UPLOAD_DIR = join(DATA_DIR, 'uploads');
 const EMOJI_DIR = join(DATA_DIR, 'emojis');
 const BACKUP_VERSION = 1;
+const EMOJI_TOKEN = /:emoji:([a-z0-9._-]+):/gi;
+
+function emojiNamesFromText(text) {
+  return [...String(text || '').matchAll(EMOJI_TOKEN)]
+    .map((m) => basename(m[1]).replace(/[^a-z0-9._-]/gi, ''));
+}
 
 export function streamBackup(res, appVersion = '') {
   const tabs = db.prepare('SELECT * FROM tabs ORDER BY position, id').all();
@@ -20,10 +26,13 @@ export function streamBackup(res, appVersion = '') {
   const users = db
     .prepare('SELECT id, username, pass_hash, totp_secret, totp_enabled, created_at FROM users')
     .all();
-  const emojiNames = tabs
-    .map((t) => String(t.emoji || ''))
-    .filter((e) => e.startsWith('emoji:'))
-    .map((e) => basename(e.slice('emoji:'.length)).replace(/[^a-z0-9._-]/gi, ''));
+  const emojiNames = new Set([
+    ...tabs
+      .map((t) => String(t.emoji || ''))
+      .filter((e) => e.startsWith('emoji:'))
+      .map((e) => basename(e.slice('emoji:'.length)).replace(/[^a-z0-9._-]/gi, '')),
+    ...entries.flatMap((e) => emojiNamesFromText(e.content)),
+  ]);
 
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader(
