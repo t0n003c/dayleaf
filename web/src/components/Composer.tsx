@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import type { Tab } from '../types';
 import EmojiInsertPicker from './EmojiInsertPicker';
-import { emojiToken } from './EntryText';
+import EntryText, { emojiToken, hasEmojiTokens } from './EntryText';
 import { tabIconText } from './TabIcon';
 
 const MOODS = ['😄', '🙂', '😐', '😕', '😣'];
@@ -113,6 +113,11 @@ export default function Composer({ tabs, defaultTab, onSaved, onClose, placehold
           if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') save();
         }}
       />
+      {hasEmojiTokens(content) && (
+        <div className="entry-live-preview">
+          <EntryText text={content} />
+        </div>
+      )}
 
       {photos.length > 0 && (
         <div className="pending-photos">

@@ -6,6 +6,11 @@ export function emojiToken(name: string): string {
   return `:emoji:${name}:`;
 }
 
+export function hasEmojiTokens(text: string): boolean {
+  TOKEN.lastIndex = 0;
+  return TOKEN.test(text);
+}
+
 export default function EntryText({ text }: { text: string }) {
   const parts: React.ReactNode[] = [];
   let last = 0;

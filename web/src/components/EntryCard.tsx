@@ -3,7 +3,7 @@ import { api } from '../api';
 import { appConfirm } from './dialog';
 import type { Attachment, Entry, Tab } from '../types';
 import EmojiInsertPicker from './EmojiInsertPicker';
-import EntryText, { emojiToken } from './EntryText';
+import EntryText, { emojiToken, hasEmojiTokens } from './EntryText';
 import TabIcon, { tabIconText } from './TabIcon';
 
 interface Props {
@@ -190,6 +190,11 @@ export default function EntryCard({ entry, tabs, showTab, onChanged, stagger, on
             rows={Math.max(3, draft.split('\n').length)}
             autoFocus
           />
+          {hasEmojiTokens(draft) && (
+            <div className="entry-live-preview">
+              <EntryText text={draft} />
+            </div>
+          )}
           <div className="entry-edit-tools">
             <EmojiInsertPicker onPick={insertEmoji} />
           </div>

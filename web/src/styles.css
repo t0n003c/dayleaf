@@ -1239,6 +1239,18 @@ h2.section {
   font-size: 15.5px;
 }
 
+.entry-live-preview {
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-sunken);
+  color: var(--text);
+  font-size: 15px;
+}
+
 .entry-edit-tools {
   display: flex;
   justify-content: flex-end;
