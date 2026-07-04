@@ -22,6 +22,7 @@ import {
 import { loginGate, recordAttempt, recentActivity, lockoutPolicy, clientIp } from './security.js';
 import { turnstileEnabled, turnstileSiteKey, verifyTurnstile } from './turnstile.js';
 import { optimizeUpload, thumbFile, thumbName, backfillThumbnails } from './images.js';
+import { emojiFile, importEmojiZip, listEmojis } from './emojis.js';
 import { shiftDate, targetsFor } from './memories.js';
 import { streamBackup, restoreBackup } from './backup.js';
 import pkg from '../package.json' with { type: 'json' };
@@ -449,6 +450,29 @@ app.get('/api/files/:name', requireAuth, (req, res) => {
   res.sendFile(path);
 });
 
+// ---------- custom emoji icons ----------
+
+app.get('/api/emojis', requireAuth, (req, res) => {
+  res.json(listEmojis(req.query));
+});
+
+app.post('/api/emojis/import', requireAuth, async (req, res) => {
+  try {
+    res.json(await importEmojiZip(req.body?.path));
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+app.get('/api/emojis/:name', requireAuth, (req, res) => {
+  const path = emojiFile(req.params.name);
+  if (!path) return res.status(404).end();
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Content-Disposition', `inline; filename="${basename(req.params.name)}"`);
+  res.setHeader('Cache-Control', 'private, max-age=31536000, immutable');
+  res.sendFile(path);
+});
+
 // ---------- stats & memories ----------
 
 // Clients pass ?today=YYYY-MM-DD because entry dates are in the user's local
@@ -602,7 +626,7 @@ app.post('/api/restore', requireAuth, restoreUpload.single('backup'), (req, res)
     // Photos were rewritten — regenerate any missing thumbnails in the background.
     backfillThumbnails(result.restoredNames, UPLOAD_DIR).catch(() => {});
     destroySession(req, res); // user row may have changed → force a fresh sign-in
-    res.json({ ok: true, tabs: result.tabs, entries: result.entries, photos: result.photos });
+    res.json({ ok: true, tabs: result.tabs, entries: result.entries, photos: result.photos, emojis: result.emojis || 0 });
   } catch (e) {
     res.status(400).json({ error: e.message });
   } finally {

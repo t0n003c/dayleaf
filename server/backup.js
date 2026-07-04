@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join, basename } from 'node:path';
 import { db, DATA_DIR } from './db.js';
 
@@ -9,6 +9,7 @@ import { db, DATA_DIR } from './db.js';
 // streamed out (bounded memory) and restored transactionally.
 
 const UPLOAD_DIR = join(DATA_DIR, 'uploads');
+const EMOJI_DIR = join(DATA_DIR, 'emojis');
 const BACKUP_VERSION = 1;
 
 export function streamBackup(res, appVersion = '') {
@@ -19,6 +20,10 @@ export function streamBackup(res, appVersion = '') {
   const users = db
     .prepare('SELECT id, username, pass_hash, totp_secret, totp_enabled, created_at FROM users')
     .all();
+  const emojiNames = tabs
+    .map((t) => String(t.emoji || ''))
+    .filter((e) => e.startsWith('emoji:'))
+    .map((e) => basename(e.slice('emoji:'.length)).replace(/[^a-z0-9._-]/gi, ''));
 
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader(
@@ -41,6 +46,15 @@ export function streamBackup(res, appVersion = '') {
     if (!existsSync(p)) continue;
     const b64 = readFileSync(p).toString('base64');
     res.write(`${first ? '' : ','}{"filename":${j(a.filename)},"data":${j(b64)}}`);
+    first = false;
+  }
+  res.write(`],"emojis":[`);
+  first = true;
+  for (const name of emojiNames) {
+    const p = join(EMOJI_DIR, name);
+    if (!name || !existsSync(p)) continue;
+    const b64 = readFileSync(p).toString('base64');
+    res.write(`${first ? '' : ','}{"filename":${j(name)},"data":${j(b64)}}`);
     first = false;
   }
   res.write(`]}`);
@@ -105,5 +119,15 @@ export function restoreBackup(buf) {
       photos++;
     } catch {}
   }
-  return { tabs: data.tabs.length, entries: data.entries.length, photos, restoredNames };
+  mkdirSync(EMOJI_DIR, { recursive: true });
+  let emojis = 0;
+  for (const icon of data.emojis || []) {
+    const safe = basename(String(icon.filename || '')).replace(/[^a-z0-9._-]/gi, '');
+    if (!safe || !icon.data) continue;
+    try {
+      writeFileSync(join(EMOJI_DIR, safe), Buffer.from(icon.data, 'base64'));
+      emojis++;
+    } catch {}
+  }
+  return { tabs: data.tabs.length, entries: data.entries.length, photos, emojis, restoredNames };
 }

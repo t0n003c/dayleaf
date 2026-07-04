@@ -3,6 +3,7 @@ import { startRegistration } from '@simplewebauthn/browser';
 import QRCode from 'qrcode';
 import { api } from '../api';
 import { appAlert, appConfirm, appPrompt } from '../components/dialog';
+import TabIcon from '../components/TabIcon';
 import type { AiSettings, Credential, Me, ReminderSettings, Tab } from '../types';
 import TabEditor from '../components/TabEditor';
 import pkg from '../../package.json';
@@ -372,7 +373,7 @@ export default function Settings({ me, tabs, refreshTabs, refreshMe, showToast }
         {tabs.map((t) => (
           <div className="tab-manage-row" key={t.id}>
             <span className="swatch" style={{ background: t.color }} />
-            <span className="grow" style={{ flex: 1 }}>{t.emoji} {t.name}</span>
+            <span className="grow" style={{ flex: 1 }}><TabIcon emoji={t.emoji} className="inline-tab-icon" /> {t.name}</span>
             <button className="btn ghost small" onClick={() => setEditingTab(t)}>Edit</button>
           </div>
         ))}

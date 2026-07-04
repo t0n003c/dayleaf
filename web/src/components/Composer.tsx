@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import type { Tab } from '../types';
+import { tabIconText } from './TabIcon';
 
 const MOODS = ['😄', '🙂', '😐', '😕', '😣'];
 
@@ -161,7 +162,7 @@ export default function Composer({ tabs, defaultTab, onSaved, onClose, placehold
             >
               {tabs.map((t) => (
                 <option key={t.id} value={t.id}>
-                  {t.emoji} {t.name}
+                  {tabIconText(t.emoji)} {t.name}
                 </option>
               ))}
             </select>

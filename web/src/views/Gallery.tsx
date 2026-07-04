@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import CountUp from '../components/CountUp';
 import { appConfirm } from '../components/dialog';
+import TabIcon from '../components/TabIcon';
 import type { GalleryItem } from '../types';
 
 function fmtSize(bytes: number): string {
@@ -266,7 +267,7 @@ export default function Gallery() {
                 onClick={() => { setSlideDir(0); setSelected(index); }}
               >
                 <img src={`/api/files/${item.filename}?thumb=1`} alt="" loading="lazy" />
-                <span className="thumb-emoji">{item.tab_emoji}</span>
+                <span className="thumb-emoji"><TabIcon emoji={item.tab_emoji} className="inline-tab-icon" /></span>
               </button>
             ))}
           </div>
@@ -296,7 +297,7 @@ export default function Gallery() {
             <div className="viewer-info card">
               <div className="viewer-meta-row">
                 <span className="tab-pill" style={{ color: cur.tab_color }}>
-                  {cur.tab_emoji} {cur.tab_name}
+                  <TabIcon emoji={cur.tab_emoji} className="inline-tab-icon" /> {cur.tab_name}
                 </span>
                 {cur.mood && <span className="mood">{cur.mood}</span>}
                 <span className="viewer-count">{selected! + 1} / {items.length}</span>

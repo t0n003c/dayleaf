@@ -8,6 +8,7 @@ import { MILESTONES } from '../components/StreakRing';
 import CountUp from '../components/CountUp';
 import EntryCard from '../components/EntryCard';
 import StreakRing from '../components/StreakRing';
+import TabIcon from '../components/TabIcon';
 
 const PROMPTS = [
   'What happened today?',
@@ -183,7 +184,7 @@ export default function Journal({ tabs, activeTab, composeSignal, searchSignal, 
           <div className="greet-sub">
             <span>
               {activeTabObj
-                ? `${activeTabObj.emoji} ${activeTabObj.name}`
+                ? <><TabIcon emoji={activeTabObj.emoji} className="inline-tab-icon" /> {activeTabObj.name}</>
                 : new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
             </span>
             {stats && stats.daysJournaled > 0 && (
@@ -238,7 +239,7 @@ export default function Journal({ tabs, activeTab, composeSignal, searchSignal, 
               <div className="flashback-item" key={e.id}>
                 <div className="flash-meta">
                   <span className="flash-label">{g.label}</span>
-                  <span>{e.tab_emoji} {e.tab_name}</span>
+                  <span><TabIcon emoji={e.tab_emoji} className="inline-tab-icon" /> {e.tab_name}</span>
                   {e.mood && <span>{e.mood}</span>}
                 </div>
                 <div className="flash-content">{e.content}</div>

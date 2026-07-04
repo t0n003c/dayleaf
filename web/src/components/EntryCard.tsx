@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { api } from '../api';
 import { appConfirm } from './dialog';
 import type { Attachment, Entry, Tab } from '../types';
+import TabIcon, { tabIconText } from './TabIcon';
 
 interface Props {
   entry: Entry;
@@ -133,7 +134,7 @@ export default function EntryCard({ entry, tabs, showTab, onChanged, stagger, on
       <div className="entry-head">
         {showTab && (
           <span className="tab-pill" style={{ color: entry.tab_color }}>
-            {entry.tab_emoji} {entry.tab_name}
+            <TabIcon emoji={entry.tab_emoji} className="inline-tab-icon" /> {entry.tab_name}
           </span>
         )}
         {entry.mood && <span className="mood">{entry.mood}</span>}
@@ -173,7 +174,7 @@ export default function EntryCard({ entry, tabs, showTab, onChanged, stagger, on
                 onChange={(e) => setDraftTab(Number(e.target.value))}
               >
                 {tabs.map((t) => (
-                  <option key={t.id} value={t.id}>{t.emoji} {t.name}</option>
+                  <option key={t.id} value={t.id}>{tabIconText(t.emoji)} {t.name}</option>
                 ))}
               </select>
             </label>

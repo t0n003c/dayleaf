@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Tab } from '../types';
+import TabIcon from './TabIcon';
 
 interface Props {
   tabs: Tab[];
@@ -145,7 +146,7 @@ export default function Sidebar({
                 data-droptab={t.id}
                 data-droptabname={t.name}
               >
-                <span className="side-emoji">{t.emoji}</span>
+                <TabIcon emoji={t.emoji} className="side-emoji" />
                 <span className="side-name">{t.name}</span>
                 <span className="side-count">{t.entry_count ?? 0}</span>
               </button>

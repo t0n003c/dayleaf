@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import { useIsMobile } from '../hooks';
+import TabIcon, { tabIconText } from '../components/TabIcon';
 import type { Tab } from '../types';
 
 interface QA {
@@ -97,7 +98,7 @@ export default function Ask({ tabs }: { tabs: Tab[] }) {
     scope.length === 0
       ? 'All tabs'
       : scope.length === 1
-        ? `${tabs.find((t) => t.id === scope[0])?.emoji ?? ''} ${tabs.find((t) => t.id === scope[0])?.name ?? ''}`.trim()
+        ? `${tabIconText(tabs.find((t) => t.id === scope[0])?.emoji)} ${tabs.find((t) => t.id === scope[0])?.name ?? ''}`.trim()
         : `${scope.length} tabs`;
   const rangeLabel = RANGES.find((r) => r.id === range)?.label ?? '';
 
@@ -244,7 +245,7 @@ export default function Ask({ tabs }: { tabs: Tab[] }) {
               className={`menu-item ${scope.includes(t.id) ? 'selected' : ''}`}
               onClick={() => toggleTab(t.id)}
             >
-              <span className="menu-emoji">{t.emoji}</span> {t.name}
+              <span className="menu-emoji"><TabIcon emoji={t.emoji} className="inline-tab-icon" /></span> {t.name}
               {scope.includes(t.id) && <span className="check">✓</span>}
             </button>
           ))}

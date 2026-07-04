@@ -11,6 +11,7 @@ import InstallBanner from './components/InstallBanner';
 import Sidebar from './components/Sidebar';
 import TabEditor from './components/TabEditor';
 import PhotoIcon from './components/PhotoIcon';
+import { tabIconText } from './components/TabIcon';
 import { appAlert, appConfirm, DialogHost } from './components/dialog';
 
 type View = 'journal' | 'ask' | 'gallery' | 'settings';
@@ -91,7 +92,7 @@ export default function App() {
     document.body.classList.add('dragging-entry');
     const ghost = document.createElement('div');
     ghost.className = 'entry-drag-ghost';
-    ghost.textContent = `${entry.tab_emoji} ${(entry.content || 'entry').slice(0, 38)}`;
+    ghost.textContent = `${tabIconText(entry.tab_emoji)} ${(entry.content || 'entry').slice(0, 38)}`;
     document.body.appendChild(ghost);
     // Center the ghost on the pointer and float it just above the fingertip
     // (the second translate is a % of the ghost's own size) so a finger never
