@@ -72,11 +72,42 @@ function selectionInside(el: HTMLElement) {
   return !!sel?.rangeCount && el.contains(sel.getRangeAt(0).commonAncestorContainer);
 }
 
+function rangeInside(el: HTMLElement, range: Range | null) {
+  return !!range && el.contains(range.commonAncestorContainer);
+}
+
+function nextNode(node: Node, root: Node): Node | null {
+  if (node.firstChild) return node.firstChild;
+  let cur: Node | null = node;
+  while (cur && cur !== root) {
+    if (cur.nextSibling) return cur.nextSibling;
+    cur = cur.parentNode;
+  }
+  return null;
+}
+
+function nextStartsWithWhitespace(node: Node, root: HTMLElement) {
+  let cur = nextNode(node, root);
+  while (cur) {
+    if (cur.nodeType === Node.TEXT_NODE) {
+      const text = cur.textContent || '';
+      if (text.length > 0) return /\s/.test(text[0]);
+    } else if (cur.nodeType === Node.ELEMENT_NODE) {
+      const el = cur as HTMLElement;
+      if (el.tagName === 'BR') return true;
+      if (el.tagName === 'IMG') return false;
+    }
+    cur = nextNode(cur, root);
+  }
+  return false;
+}
+
 const EntryEditor = forwardRef<EntryEditorHandle, Props>(function EntryEditor(
   { value, onChange, placeholder, autoFocus, minRows = 3, onModEnter, onFocus, onBlur },
   ref
 ) {
   const editorRef = useRef<HTMLDivElement>(null);
+  const lastRangeRef = useRef<Range | null>(null);
 
   useEffect(() => {
     const el = editorRef.current;
@@ -102,16 +133,49 @@ const EntryEditor = forwardRef<EntryEditorHandle, Props>(function EntryEditor(
     el.dataset.value = next;
     el.classList.toggle('empty', next.length === 0);
     onChange(next);
+    rememberSelection();
+  }
+
+  function rememberSelection() {
+    const el = editorRef.current;
+    const sel = window.getSelection();
+    if (!el || !sel?.rangeCount) return;
+    const range = sel.getRangeAt(0);
+    if (el.contains(range.commonAncestorContainer)) {
+      lastRangeRef.current = range.cloneRange();
+    }
+  }
+
+  function restoreInsertionRange() {
+    const el = editorRef.current;
+    if (!el) return null;
+    const sel = window.getSelection();
+    if (document.activeElement === el && selectionInside(el) && sel?.rangeCount) {
+      const range = sel.getRangeAt(0);
+      lastRangeRef.current = range.cloneRange();
+      return range;
+    }
+    if (rangeInside(el, lastRangeRef.current)) {
+      const range = lastRangeRef.current!.cloneRange();
+      el.focus({ preventScroll: true });
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+      return range;
+    }
+    el.focus({ preventScroll: true });
+    placeCaretAtEnd(el);
+    if (!sel?.rangeCount) return null;
+    const range = sel.getRangeAt(0);
+    lastRangeRef.current = range.cloneRange();
+    return range;
   }
 
   function insertEmoji(name: string) {
     const el = editorRef.current;
     if (!el) return;
-    el.focus();
-    if (!selectionInside(el)) placeCaretAtEnd(el);
     const sel = window.getSelection();
-    if (!sel?.rangeCount) return;
-    const range = sel.getRangeAt(0);
+    const range = restoreInsertionRange();
+    if (!sel || !range) return;
     range.deleteContents();
     const img = document.createElement('img');
     img.className = 'entry-inline-emoji';
@@ -119,13 +183,18 @@ const EntryEditor = forwardRef<EntryEditorHandle, Props>(function EntryEditor(
     img.alt = '';
     img.dataset.emoji = name;
     img.contentEditable = 'false';
-    const space = document.createTextNode(' ');
-    range.insertNode(space);
     range.insertNode(img);
-    range.setStartAfter(space);
+    if (nextStartsWithWhitespace(img, el)) {
+      range.setStartAfter(img);
+    } else {
+      const space = document.createTextNode(' ');
+      img.after(space);
+      range.setStartAfter(space);
+    }
     range.collapse(true);
     sel.removeAllRanges();
     sel.addRange(range);
+    lastRangeRef.current = range.cloneRange();
     emit();
   }
 
@@ -166,8 +235,14 @@ const EntryEditor = forwardRef<EntryEditorHandle, Props>(function EntryEditor(
       onInput={emit}
       onKeyDown={onKeyDown}
       onPaste={onPaste}
+      onKeyUp={rememberSelection}
+      onMouseUp={rememberSelection}
+      onTouchEnd={rememberSelection}
       onFocus={onFocus}
-      onBlur={onBlur}
+      onBlur={() => {
+        rememberSelection();
+        onBlur?.();
+      }}
     />
   );
 });
