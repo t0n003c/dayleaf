@@ -3,7 +3,8 @@ import { api } from '../api';
 import { appConfirm } from './dialog';
 import type { Attachment, Entry, Tab } from '../types';
 import EmojiInsertPicker from './EmojiInsertPicker';
-import EntryText, { emojiToken, hasEmojiTokens } from './EntryText';
+import EntryEditor, { type EntryEditorHandle } from './EntryEditor';
+import EntryText from './EntryText';
 import TabIcon, { tabIconText } from './TabIcon';
 
 interface Props {
@@ -22,7 +23,7 @@ export default function EntryCard({ entry, tabs, showTab, onChanged, stagger, on
   const [newPhotos, setNewPhotos] = useState<File[]>([]);
   const cameraRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const draftRef = useRef<HTMLTextAreaElement>(null);
+  const editorRef = useRef<EntryEditorHandle>(null);
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -85,24 +86,7 @@ export default function EntryCard({ entry, tabs, showTab, onChanged, stagger, on
   }
 
   function insertEmoji(name: string) {
-    const token = emojiToken(name);
-    const el = draftRef.current;
-    if (!el) {
-      setDraft((prev) => `${prev}${prev && !prev.endsWith(' ') ? ' ' : ''}${token} `);
-      return;
-    }
-    const start = el.selectionStart ?? draft.length;
-    const end = el.selectionEnd ?? draft.length;
-    const before = draft.slice(0, start);
-    const after = draft.slice(end);
-    const insert = `${before && !/\s$/.test(before) ? ' ' : ''}${token}${after && !/^\s/.test(after) ? ' ' : ''}`;
-    const next = `${before}${insert}${after}`;
-    setDraft(next);
-    window.requestAnimationFrame(() => {
-      el.focus();
-      const pos = before.length + insert.length;
-      el.setSelectionRange(pos, pos);
-    });
+    editorRef.current?.insertEmoji(name);
   }
 
   async function saveEdit() {
@@ -182,20 +166,14 @@ export default function EntryCard({ entry, tabs, showTab, onChanged, stagger, on
 
       {editing ? (
         <>
-          <textarea
-            ref={draftRef}
-            className="input"
+          <EntryEditor
+            ref={editorRef}
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            rows={Math.max(3, draft.split('\n').length)}
+            onChange={setDraft}
+            minRows={Math.max(3, draft.split('\n').length)}
             autoFocus
+            onModEnter={saveEdit}
           />
-          {hasEmojiTokens(draft) && (
-            <div className="entry-live-preview">
-              <div className="entry-live-label">Preview</div>
-              <EntryText text={draft} />
-            </div>
-          )}
           <div className="entry-edit-tools">
             <EmojiInsertPicker onPick={insertEmoji} />
           </div>

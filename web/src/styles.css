@@ -971,7 +971,7 @@ h2.section {
 
 .composer-close:hover { background: var(--bg-sunken); color: var(--text); }
 
-.composer textarea { padding-right: 30px; }
+.composer .entry-editor { padding-right: 30px; }
 
 /* ---------- flashback (“On this day”) ---------- */
 
@@ -1025,15 +1025,22 @@ h2.section {
   overflow: hidden;
 }
 
-.composer textarea {
+.entry-editor {
   border: none;
   background: transparent;
   width: 100%;
-  resize: none;
-  min-height: 64px;
+  min-height: calc(var(--min-rows, 3) * 1.55em);
   outline: none;
   font-size: 16px;
   line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.entry-editor.empty::before {
+  content: attr(data-placeholder);
+  color: var(--text-dim);
+  pointer-events: none;
 }
 
 .composer .composer-foot {
@@ -1237,27 +1244,6 @@ h2.section {
   white-space: pre-wrap;
   overflow-wrap: break-word;
   font-size: 15.5px;
-}
-
-.entry-live-preview {
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
-  margin-top: 8px;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--bg-sunken);
-  color: var(--text);
-  font-size: 15px;
-}
-
-.entry-live-label {
-  margin-bottom: 5px;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-dim);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 .entry-edit-tools {

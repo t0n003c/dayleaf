@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import type { Tab } from '../types';
 import EmojiInsertPicker from './EmojiInsertPicker';
-import EntryText, { emojiToken, hasEmojiTokens } from './EntryText';
+import EntryEditor, { type EntryEditorHandle } from './EntryEditor';
 import { tabIconText } from './TabIcon';
 
 const MOODS = ['😄', '🙂', '😐', '😕', '😣'];
@@ -26,19 +26,10 @@ export default function Composer({ tabs, defaultTab, onSaved, onClose, placehold
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
-  const textRef = useRef<HTMLTextAreaElement>(null);
+  const editorRef = useRef<EntryEditorHandle>(null);
 
   useEffect(() => { setTabId(defaultTab); }, [defaultTab]);
   useEffect(() => () => document.body.classList.remove('writing'), []);
-
-  // Auto-grow the textarea with content.
-  useEffect(() => {
-    const el = textRef.current;
-    if (el) {
-      el.style.height = 'auto';
-      el.style.height = `${Math.max(64, el.scrollHeight)}px`;
-    }
-  }, [content]);
 
   function addFiles(list: FileList | null) {
     if (!list || list.length === 0) return;
@@ -50,24 +41,7 @@ export default function Composer({ tabs, defaultTab, onSaved, onClose, placehold
   }
 
   function insertEmoji(name: string) {
-    const token = emojiToken(name);
-    const el = textRef.current;
-    if (!el) {
-      setContent((prev) => `${prev}${prev && !prev.endsWith(' ') ? ' ' : ''}${token} `);
-      return;
-    }
-    const start = el.selectionStart ?? content.length;
-    const end = el.selectionEnd ?? content.length;
-    const before = content.slice(0, start);
-    const after = content.slice(end);
-    const insert = `${before && !/\s$/.test(before) ? ' ' : ''}${token}${after && !/^\s/.test(after) ? ' ' : ''}`;
-    const next = `${before}${insert}${after}`;
-    setContent(next);
-    window.requestAnimationFrame(() => {
-      el.focus();
-      const pos = before.length + insert.length;
-      el.setSelectionRange(pos, pos);
-    });
+    editorRef.current?.insertEmoji(name);
   }
 
   async function save() {
@@ -101,24 +75,16 @@ export default function Composer({ tabs, defaultTab, onSaved, onClose, placehold
           ✕
         </button>
       )}
-      <textarea
-        ref={textRef}
+      <EntryEditor
+        ref={editorRef}
         placeholder={placeholder ?? 'What happened today?'}
         autoFocus={autoFocus}
         value={content}
+        onChange={setContent}
         onFocus={() => { if (window.matchMedia('(min-width: 700px)').matches) document.body.classList.add('writing'); }}
         onBlur={() => document.body.classList.remove('writing')}
-        onChange={(e) => setContent(e.target.value)}
-        onKeyDown={(e) => {
-          if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') save();
-        }}
+        onModEnter={save}
       />
-      {hasEmojiTokens(content) && (
-        <div className="entry-live-preview">
-          <div className="entry-live-label">Preview</div>
-          <EntryText text={content} />
-        </div>
-      )}
 
       {photos.length > 0 && (
         <div className="pending-photos">
