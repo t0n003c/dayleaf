@@ -115,6 +115,7 @@ export default function Composer({ tabs, defaultTab, onSaved, onClose, placehold
       />
       {hasEmojiTokens(content) && (
         <div className="entry-live-preview">
+          <div className="entry-live-label">Preview</div>
           <EntryText text={content} />
         </div>
       )}

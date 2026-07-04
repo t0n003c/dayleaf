@@ -192,6 +192,7 @@ export default function EntryCard({ entry, tabs, showTab, onChanged, stagger, on
           />
           {hasEmojiTokens(draft) && (
             <div className="entry-live-preview">
+              <div className="entry-live-label">Preview</div>
               <EntryText text={draft} />
             </div>
           )}

@@ -1251,6 +1251,15 @@ h2.section {
   font-size: 15px;
 }
 
+.entry-live-label {
+  margin-bottom: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .entry-edit-tools {
   display: flex;
   justify-content: flex-end;

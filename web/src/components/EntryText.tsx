@@ -1,20 +1,23 @@
 import type React from 'react';
 
-const TOKEN = /:emoji:([a-z0-9._-]+):/gi;
+const TOKEN_PATTERN = ':emoji:([a-z0-9._-]+):';
+
+function tokenRegex() {
+  return new RegExp(TOKEN_PATTERN, 'gi');
+}
 
 export function emojiToken(name: string): string {
   return `:emoji:${name}:`;
 }
 
 export function hasEmojiTokens(text: string): boolean {
-  TOKEN.lastIndex = 0;
-  return TOKEN.test(text);
+  return new RegExp(TOKEN_PATTERN, 'i').test(text);
 }
 
 export default function EntryText({ text }: { text: string }) {
   const parts: React.ReactNode[] = [];
   let last = 0;
-  for (const match of text.matchAll(TOKEN)) {
+  for (const match of text.matchAll(tokenRegex())) {
     const index = match.index ?? 0;
     if (index > last) parts.push(text.slice(last, index));
     const name = match[1];
