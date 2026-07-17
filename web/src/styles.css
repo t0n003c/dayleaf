@@ -1104,6 +1104,23 @@ h2.section {
   cursor: pointer;
   white-space: nowrap;
 }
+.tab-picker-icon {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+.tab-picker-icon .tab-icon-img {
+  display: block;
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+.tab-picker-trigger .tab-picker-icon { width: 20px; height: 20px; flex-basis: 20px; }
+.tab-picker-trigger .tab-picker-icon .tab-icon-img { width: 20px; height: 20px; }
 .tab-picker-name { overflow: hidden; text-overflow: ellipsis; }
 .tab-picker-chevron { flex-shrink: 0; color: var(--text-dim); transition: transform 0.15s; }
 .tab-picker.open .tab-picker-chevron { transform: rotate(180deg); }

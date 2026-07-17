@@ -44,7 +44,9 @@ export default function TabPicker({ tabs, value, onChange }: Props) {
         aria-expanded={open}
         onClick={() => setOpen((isOpen) => !isOpen)}
       >
-        <TabIcon emoji={current.emoji} className="inline-tab-icon" />
+        <span className="tab-picker-icon">
+          <TabIcon emoji={current.emoji} className="inline-tab-icon" />
+        </span>
         <span className="tab-picker-name">{current.name}</span>
         <svg className="tab-picker-chevron" width="10" height="6" viewBox="0 0 10 6" fill="none" aria-hidden="true">
           <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
@@ -61,7 +63,9 @@ export default function TabPicker({ tabs, value, onChange }: Props) {
               key={tab.id}
               onClick={() => { onChange(tab.id); setOpen(false); }}
             >
-              <TabIcon emoji={tab.emoji} className="inline-tab-icon" />
+              <span className="tab-picker-icon">
+                <TabIcon emoji={tab.emoji} className="inline-tab-icon" />
+              </span>
               <span>{tab.name}</span>
               {tab.id === current.id && <span className="tab-picker-check">✓</span>}
             </button>
