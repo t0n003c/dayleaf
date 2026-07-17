@@ -3,7 +3,7 @@ import { api } from '../api';
 import type { Tab } from '../types';
 import EmojiInsertPicker from './EmojiInsertPicker';
 import EntryEditor, { type EntryEditorHandle } from './EntryEditor';
-import { tabIconText } from './TabIcon';
+import TabPicker from './TabPicker';
 
 const MOODS = ['😄', '🙂', '😐', '😕', '😣'];
 
@@ -151,17 +151,7 @@ export default function Composer({ tabs, defaultTab, onSaved, onClose, placehold
             onChange={(e) => setDate(e.target.value)}
           />
           {tabs.length > 1 && (
-            <select
-              className="date-input tab-select"
-              value={tabId}
-              onChange={(e) => setTabId(Number(e.target.value))}
-            >
-              {tabs.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {tabIconText(t.emoji)} {t.name}
-                </option>
-              ))}
-            </select>
+            <TabPicker tabs={tabs} value={tabId} onChange={setTabId} />
           )}
           <button className="btn primary small" onClick={save} disabled={busy || (!content.trim() && photos.length === 0)}>
             Save

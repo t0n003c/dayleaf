@@ -1095,6 +1095,55 @@ h2.section {
 
 .composer-actions .tab-select { max-width: 150px; text-overflow: ellipsis; }
 
+.tab-picker { position: relative; min-width: 0; }
+.tab-picker-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.tab-picker-name { overflow: hidden; text-overflow: ellipsis; }
+.tab-picker-chevron { flex-shrink: 0; color: var(--text-dim); transition: transform 0.15s; }
+.tab-picker.open .tab-picker-chevron { transform: rotate(180deg); }
+.tab-picker-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 7px);
+  min-width: 190px;
+  max-width: min(260px, calc(100vw - 28px));
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: var(--bg-raised);
+  box-shadow: var(--shadow-menu);
+  z-index: 80;
+  animation: fade-up 0.14s ease both;
+}
+.tab-picker-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: none;
+  background: none;
+  border-radius: 9px;
+  padding: 8px 10px;
+  color: var(--text);
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+}
+.tab-picker-option:hover,
+.tab-picker-option.selected { background: var(--accent-soft); }
+.tab-picker-option span:not(.inline-tab-icon) { overflow: hidden; text-overflow: ellipsis; }
+.tab-picker-check { margin-left: auto; color: var(--accent); font-weight: 700; }
+
+.entry-move .tab-picker { flex: 0 1 auto; }
+
 @media (max-width: 560px) {
   /* Two tidy rows on phones: moods + photo buttons, then date + tab + Save. */
   .composer-tools,
@@ -1104,7 +1153,8 @@ h2.section {
     justify-content: space-between;
   }
 
-  .composer-actions .tab-select { flex: 1; min-width: 0; max-width: none; }
+  .composer-actions .tab-picker { flex: 1; min-width: 0; }
+  .composer-actions .tab-picker-trigger { width: 100%; }
   .composer-actions .btn.small { padding: 8px 20px; border-radius: 10px; }
 }
 

@@ -5,7 +5,8 @@ import type { Attachment, Entry, Tab } from '../types';
 import EmojiInsertPicker from './EmojiInsertPicker';
 import EntryEditor, { type EntryEditorHandle } from './EntryEditor';
 import EntryText from './EntryText';
-import TabIcon, { tabIconText } from './TabIcon';
+import TabIcon from './TabIcon';
+import TabPicker from './TabPicker';
 
 interface Props {
   entry: Entry;
@@ -180,15 +181,7 @@ export default function EntryCard({ entry, tabs, showTab, onChanged, stagger, on
           {tabs.length > 1 && (
             <label className="entry-move">
               <span>Journal</span>
-              <select
-                className="date-input tab-select"
-                value={draftTab}
-                onChange={(e) => setDraftTab(Number(e.target.value))}
-              >
-                {tabs.map((t) => (
-                  <option key={t.id} value={t.id}>{tabIconText(t.emoji)} {t.name}</option>
-                ))}
-              </select>
+              <TabPicker tabs={tabs} value={draftTab} onChange={setDraftTab} />
             </label>
           )}
         </>
